@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Build & Publish
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0   # full history so we can read all tags
+
+      - name: Compute next semantic version
+        id: version
+        run: |
+          # Get the latest semver tag (vMAJOR.MINOR.PATCH), default to v0.0.0
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
+            | sort -V | tail -n 1)
+          LATEST=${LATEST:-v0.0.0}
+
+          MAJOR=$(echo "$LATEST" | cut -d. -f1 | tr -d 'v')
+          MINOR=$(echo "$LATEST" | cut -d. -f2)
+          PATCH=$(echo "$LATEST" | cut -d. -f3)
+
+          # Bump patch by default.
+          # Bump minor if any commit message since last tag starts with "feat".
+          # Bump major if any commit message since last tag starts with "BREAKING".
+          COMMITS=$(git log "${LATEST}..HEAD" --pretty=format:"%s")
+
+          if echo "$COMMITS" | grep -qiE '^BREAKING'; then
+            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+          elif echo "$COMMITS" | grep -qiE '^feat'; then
+            MINOR=$((MINOR + 1)); PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "Bumping $LATEST → $NEW_TAG"
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Assemble .app bundle
+        env:
+          VERSION: ${{ steps.version.outputs.tag }}
+        run: |
+          APP="NotchNotes.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS"
+          cp .build/release/NotchNotes "$APP/Contents/MacOS/NotchNotes"
+
+          SHORT=${VERSION#v}   # strip leading 'v'
+          BUILD=$(echo "$SHORT" | tr -d '.')
+
+          cat > "$APP/Contents/Info.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleName</key>                <string>NotchNotes</string>
+              <key>CFBundleIdentifier</key>          <string>com.local.notchnotes</string>
+              <key>CFBundleExecutable</key>          <string>NotchNotes</string>
+              <key>CFBundlePackageType</key>         <string>APPL</string>
+              <key>CFBundleShortVersionString</key>  <string>${SHORT}</string>
+              <key>CFBundleVersion</key>             <string>${BUILD}</string>
+              <key>LSMinimumSystemVersion</key>      <string>13.0</string>
+              <key>LSUIElement</key>                 <true/>
+              <key>NSHighResolutionCapable</key>     <true/>
+          </dict>
+          </plist>
+          EOF
+
+          codesign --force --sign - "$APP"
+          zip -r "NotchNotes-${VERSION}.zip" "$APP"
+
+      - name: Tag the commit
+        env:
+          VERSION: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c062e08bd532815e2082a7e09ce9571a6d1144cd  # v2.2.2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          files: NotchNotes-${{ steps.version.outputs.tag }}.zip
