@@ -49,6 +49,7 @@ let notchGap:  CGFloat = 8
 let urlMinW:   CGFloat = 80                 // URL field shrinks with the space beside the notch
 let urlMaxW:   CGFloat = 180
 let urlTrayW:  CGFloat = 120                // URL field width inside the "…" tray
+let clearW:    CGFloat = 16                 // clear button inside the URL field
 let leftTools  = 4                          // tools left of the notch; the rest go right
 let webInset:  CGFloat = 6                  // black border around web pages
 let topLevel = Int(CGWindowLevelForKey(.maximumWindow))   // same level as Teams' share border
@@ -520,6 +521,7 @@ final class NotchWindowController: NSWindowController {
     private var themeObservation: NSKeyValueObservation?
     private var urlBox: NSView!
     private var urlField: FadingField!
+    private var clearButton: IconButton!
     private var quitButton: IconButton!
     private var captureButton: IconButton!
     private var moreButton: IconButton!
@@ -645,6 +647,19 @@ final class NotchWindowController: NSWindowController {
         urlField.action = #selector(urlEntered)
         urlBox.addSubview(urlField)
 
+        // Clear button at the right end of the URL field, shown while a page is loaded
+        clearButton = IconButton("xmark.circle.fill", hint: "Back to notes", width: clearW)
+        clearButton.frame.origin.x = urlBox.bounds.width - clearW - 2
+        clearButton.autoresizingMask = [.minXMargin]
+        clearButton.hoverFill = .clear
+        clearButton.onClick = { [weak self] in
+            guard let self else { return }
+            if self.urlField.currentEditor() != nil { self.urlField.abortEditing() }
+            self.setWebURL("")
+            self.window?.makeFirstResponder(self.textView)
+        }
+        urlBox.addSubview(clearButton)
+
         let toolSpecs: [(String, String, (NotchWindowController) -> Void)] = [
             ("checklist",               "Checklist",    { $0.textView.toggleList(checkbox: true) }),
             ("list.bullet",             "Bullet list",  { $0.textView.toggleList(checkbox: false) }),
@@ -661,7 +676,7 @@ final class NotchWindowController: NSWindowController {
         moreButton = IconButton("ellipsis", hint: "Formatting")
         moreButton.onClick = { [weak self] in self?.toggleTray() }
 
-        for b in [quitButton!, captureButton!, moreButton!] + iconTools {
+        for b in [quitButton!, captureButton!, moreButton!, clearButton!] + iconTools {
             b.onHover = { [weak self, weak b] on in
                 if let self, let b { self.hover(b, on) }
             }
@@ -737,8 +752,13 @@ final class NotchWindowController: NSWindowController {
         }
 
         // Each side of the notch has the same space; the URL field takes what's left on the right
+        // The formatting tools only apply to notes, so they're hidden while a web page is shown
+        let web = webView != nil
+        tools.prefix(leftTools).forEach { $0.isHidden = web }
+        let left = web ? [] : Array(tools.prefix(leftTools)), right = Array(tools.dropFirst(leftTools))
+
         let side = (panelW - notchSize.width) / 2
-        let leftNeeded = edgeInset + quitW + groupGap + rowWidth(tools.prefix(leftTools)) + notchGap
+        let leftNeeded = edgeInset + quitW + groupGap + rowWidth(left) + notchGap
         let urlRoom = side - (edgeInset + toggleW + groupGap + notchGap)
         let inline = side >= leftNeeded && urlRoom >= urlMinW
         moreButton.isHidden = inline
@@ -748,21 +768,21 @@ final class NotchWindowController: NSWindowController {
             tray.isHidden = true
             moreButton.isActive = false
             var x = edgeInset + quitW + groupGap
-            for v in tools.prefix(leftTools) {
+            for v in left {
                 place(v, in: panel, x: x, y: y)
                 x += v.frame.width + toolGap
             }
-            x = panelW - edgeInset - toggleW - groupGap - rowWidth(tools.dropFirst(leftTools))
-            for v in tools.dropFirst(leftTools) {
+            x = panelW - edgeInset - toggleW - groupGap - rowWidth(right)
+            for v in right {
                 place(v, in: panel, x: x, y: y)
                 x += v.frame.width + toolGap
             }
         } else {
             moreButton.frame.origin = CGPoint(x: panelW - edgeInset - toggleW - 6 - toolW, y: y)
-            let w = rowWidth(tools) + 8, h = toolH + 8
+            let w = rowWidth(left + right) + 8, h = toolH + 8
             tray.frame = CGRect(x: moreButton.frame.maxX - w, y: y - 6 - h, width: w, height: h)
             var x: CGFloat = 4
-            for v in tools {
+            for v in left + right {
                 place(v, in: tray, x: x, y: 4)
                 x += v.frame.width + toolGap
             }
@@ -849,6 +869,8 @@ final class NotchWindowController: NSWindowController {
         urlField.stringValue = webURL
         urlField.updateFades()
         urlBox.layer?.backgroundColor = NSColor(white: 1, alpha: webView == nil ? 0.08 : 0.16).cgColor
+        clearButton.isHidden = webView == nil
+        urlField.frame.size.width = urlBox.bounds.width - 12 - (webView == nil ? 0 : clearW)
         layoutControls()
     }
 
