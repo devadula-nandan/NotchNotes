@@ -6,6 +6,12 @@ A lightweight macOS menubar notepad that lives inside your MacBook's notch. Hove
 
 ---
 
+## Demo
+
+https://github.com/user-attachments/assets/21a1e01f-e46a-49fc-b3f6-b9cb442a801e
+
+---
+
 ## Features
 
 - **Lives in the notch**: hovers silently at the top of your screen; expands on mouse-over, disappears when you move away.
