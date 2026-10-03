@@ -1,0 +1,18 @@
+# Swift / SPM build artifacts
+.build/
+*.o
+*.d
+*.swp
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+xcuserdata/
+
+# macOS
+.DS_Store
+
+# App bundle (built locally, distributed as release asset)
+NotchNotes.app/
+NotchNotes.zip
