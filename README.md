@@ -32,6 +32,7 @@ A lightweight macOS menubar notepad that lives inside your MacBook's notch. Hove
 3. Move `NotchNotes.app` to your `/Applications` folder.
 4. **First launch:** right-click `NotchNotes.app` → **Open** → click **Open** in the dialog (required once because the app is ad-hoc signed, not notarized).
 5. Hover over the notch (or the top-center of the screen) to confirm it works.
+6. Notes are saved in `~/Library/Application Support/NotchNotes`
 
 **Auto-start on login (optional)**  
 System Settings → General → Login Items → click **+** → select `NotchNotes.app`.
