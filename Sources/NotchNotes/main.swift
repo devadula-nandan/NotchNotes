@@ -535,7 +535,7 @@ final class NotchWindowController: NSWindowController {
     var panelTotalW: CGFloat { panelW + 2 * expandedRadius }
 
     // Padded by 1pt: CGRect.contains excludes the max edges, and the cursor sits
-    // exactly on the top edge at the top of the screen — which made hover flicker
+    // exactly on the top edge at the top of the screen, which made hover flicker
     var isMouseInside: Bool {
         (isExpanded ? expandedFrame : collapsedFrame).insetBy(dx: -1, dy: -1).contains(NSEvent.mouseLocation)
     }
@@ -622,8 +622,8 @@ final class NotchWindowController: NSWindowController {
         captureButton = IconButton("eye.slash.fill", hint: "", width: toggleW)
         captureButton.layer?.cornerRadius = toolH / 2
         captureButton.hint = { [weak self] in
-            self?.hiddenFromCapture == true ? "Hidden from screen recording — click to show"
-                                            : "Visible in screen recording — click to hide"
+            self?.hiddenFromCapture == true ? "Hidden from screen recording (click to show)"
+                                            : "Visible in screen recording (click to hide)"
         }
         captureButton.onClick = { [weak self] in self?.toggleCapture() }
         updateCaptureButton()
