@@ -17,10 +17,11 @@ https://github.com/user-attachments/assets/21a1e01f-e46a-49fc-b3f6-b9cb442a801e
 - **Lives in the notch**: hovers silently at the top of your screen; expands on mouse-over, disappears when you move away.
 - **Persistent notes**: your text is auto-saved to `~/Library/Application Support/NotchNotes/notes.txt` and restored on relaunch.
 - **Checkbox lists**: type `- [ ] item` or click the checklist toolbar button to toggle a to-do list. Click any checkbox to check/uncheck it. Checked items are struck through and dimmed automatically.
-- **Bullet lists**: one-click bullet-list formatting with the same smart toggle/remove logic.
-- **Inline web view**: paste a URL into the URL bar and press Return to embed any webpage in the panel. Press Return on an empty URL field to return to notes. The URL is remembered across relaunches.
+- **Numbered lists**: one-click numbered-list formatting with the same smart toggle/remove logic. Enter continues the list and keeps the numbers in order.
+- **Inline web view**: paste a URL into the URL bar and press Return to embed any webpage in the panel. Plain text that isn't an address runs a Google search. Press Return on an empty URL field to return to notes. The URL is remembered across relaunches.
+- **Lock open**: click the lock icon next to the quit button to keep the panel open when the mouse leaves; click again to unlock.
 - **Resizable panel**: drag the bottom-left or bottom-right corner grips to resize the panel. Width and height are saved and restored.
-- **Adjustable font size**: A− / A+ buttons shrink or grow the monospaced editor font (10–24 pt). Persisted across launches.
+- **Adjustable font size**: a small number field in the toolbar sets the monospaced editor font size (10–24 pt). Type a size and press Return, or step it with the field's up / down arrows or the ↑ / ↓ keys. Persisted across launches.
 - **Screen-recording privacy**: by default the window is excluded from screen captures and recordings. Click the eye icon in the top-right to toggle visibility in screen shares.
 - **Overflow toolbar tray**: on narrower panels, toolbar buttons collapse into a `…` menu so nothing is ever clipped.
 - **Smooth expand/collapse animation**: 220 ms ease-out expand, ease-in collapse with a 150 ms fade.
@@ -66,6 +67,14 @@ open NotchNotes.app
 ```
 
 The script produces a self-contained `NotchNotes.app` in the project root.
+
+### Dev mode
+
+```bash
+bash dev.sh
+```
+
+Builds in debug mode, launches the app, and rebuilds and relaunches it whenever a file under `Sources/` or `Package.swift` changes. If a build fails, the previous build keeps running. It quits an installed `NotchNotes.app` first, since both would share the same notes file. Press Ctrl+C to stop.
 
 ---
 
