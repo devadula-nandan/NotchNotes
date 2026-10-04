@@ -246,7 +246,8 @@ final class NotchWindowController: NSWindowController {
         textView.insertionPointColor = NSColor(white: 0.7, alpha: 1)
         // No foreground override: it would reveal the hidden "- [ ]" behind checkboxes
         textView.selectedTextAttributes = [.backgroundColor: NSColor.controlAccentColor.withAlphaComponent(0.5)]
-        textView.textContainerInset = CGSize(width: 10, height: 6)   // 2pt above the text, 10pt below (see textContainerOrigin)
+        // 2pt above the text and none below (see textContainerOrigin): the gap under the notes is the scroll view's
+        textView.textContainerInset = CGSize(width: 10, height: 1)
         textView.maxSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
         textView.string = (try? String(contentsOf: notesURL, encoding: .utf8)) ?? ""
@@ -348,8 +349,10 @@ final class NotchWindowController: NSWindowController {
     private func layoutControls() {
         // Content: notes or web page, below the notch
         let contentH = panelH - notchSize.height
-        scrollView.frame = CGRect(x: 0, y: 0, width: panelW, height: contentH)
-        webHost.frame = scrollView.frame.insetBy(dx: webInset, dy: webInset)
+        // The notes keep the same gap from the bottom edge as the text has from the sides
+        let notesPad = textView.textContainerInset.width + (textView.textContainer?.lineFragmentPadding ?? 0)
+        scrollView.frame = CGRect(x: 0, y: notesPad, width: panelW, height: contentH - notesPad)
+        webHost.frame = CGRect(x: 0, y: 0, width: panelW, height: contentH).insetBy(dx: webInset, dy: webInset)
         clearButton.hint = popups.isEmpty ? "Close Page" : "Close Pop-up"
         textView.minSize = CGSize(width: 0, height: scrollView.contentSize.height)
         textView.frame.size.width = scrollView.contentSize.width
@@ -448,17 +451,16 @@ final class NotchWindowController: NSWindowController {
             let cr = min(max(r - webInset, 0), rect.width / 2, rect.height / 2)
             // The inward curve only exists while the corner is gentler than the border is thick
             // (early in the expand animation it isn't; a plain rounded rect is fine for those frames)
-            if r / 2.squareRoot() > webInset + 1, visible.width > 2 * r, visible.height > r + cr {
+            if r / 2.squareRoot() > webInset + 1, visible.width > 2 * r, visible.height > 2 * r {
                 let v = visible, d = webInset
                 let curve = cornerCurve(radius: r, inset: d).map { CGPoint(x: v.minX - d + $0.x, y: v.minY - d + $0.y) }
+                // The same curve on all four corners, mirrored across the page's centre lines
+                let mx = v.minX + v.maxX, my = v.minY + v.maxY
                 let path = CGMutablePath()
-                path.move(to: CGPoint(x: v.minX, y: v.maxY - cr))
-                curve.forEach { path.addLine(to: $0) }
-                curve.reversed().forEach { path.addLine(to: CGPoint(x: v.minX + v.maxX - $0.x, y: $0.y)) }
-                path.addLine(to: CGPoint(x: v.maxX, y: v.maxY - cr))
-                path.addArc(tangent1End: CGPoint(x: v.maxX, y: v.maxY), tangent2End: CGPoint(x: v.maxX - cr, y: v.maxY), radius: cr)
-                path.addLine(to: CGPoint(x: v.minX + cr, y: v.maxY))
-                path.addArc(tangent1End: CGPoint(x: v.minX, y: v.maxY), tangent2End: CGPoint(x: v.minX, y: v.maxY - cr), radius: cr)
+                path.addLines(between: curve
+                    + curve.reversed().map { CGPoint(x: mx - $0.x, y: $0.y) }
+                    + curve.map { CGPoint(x: mx - $0.x, y: my - $0.y) }
+                    + curve.reversed().map { CGPoint(x: $0.x, y: my - $0.y) })
                 path.closeSubpath()
                 // Panel coordinates → the web area's
                 let o = webHost.convert(CGPoint.zero, from: panel)
