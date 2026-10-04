@@ -98,14 +98,19 @@ final class NotchWindowController: NSWindowController {
     }
     private var hiddenFromCapture = true { didSet { applyCapture() } }
     private var isLocked = false { didSet { applyLock() } }      // a locked panel stays open when the mouse leaves
+    private var mobileAgent = UserDefaults.standard.bool(forKey: "mobileAgent") {
+        didSet { UserDefaults.standard.set(mobileAgent, forKey: "mobileAgent"); applyAgent(reload: true) }
+    }
     private var animationID = 0                                  // ignores completions from interrupted animations
 
     private let panel = NSView()
     private let scrollView = NSScrollView()
     private let textView = NoteTextView()
     private var webView: WKWebView?
-    private var webObservations: [NSKeyValueObservation] = []
+    private var popups: [WKWebView] = []                         // windows the page opened, topmost last
+    private var webObservations: [ObjectIdentifier: [NSKeyValueObservation]] = [:]
     private var themeObservation: NSKeyValueObservation?
+    private let webHost = NSView()                               // holds the page and its pop-ups, clipped to the panel's shape
     private let webMask = CAShapeLayer()
     private let loadingPill = LoadingPill(frame: .zero)
 
@@ -115,6 +120,7 @@ final class NotchWindowController: NSWindowController {
     private let moreButton = IconButton("ellipsis", hint: "More")
     private let checklistButton = IconButton("checklist", hint: "Checklist")
     private let numberedButton = IconButton("list.number", hint: "Numbered List")
+    private let agentButton = IconButton("desktopcomputer", hint: "")
     private let clearButton = IconButton("xmark.circle.fill", hint: "Close Page", width: clearW)
     private lazy var sizeField = FontSizeField(value: fontSize, range: 10...24)
     private let urlBox = NSView(frame: CGRect(x: 0, y: 0, width: 100, height: toolH))
@@ -129,6 +135,10 @@ final class NotchWindowController: NSWindowController {
 
     // Formatting tools, left of the notch; they overflow into the tray from the last one
     private var formatTools: [NSView] { [checklistButton, numberedButton, sizeField] }
+
+    private var allWebViews: [WKWebView] { (webView.map { [$0] } ?? []) + popups }
+    private var shownWeb: WKWebView? { popups.last ?? webView }
+    private var shownAddress: String { popups.last.map { $0.url?.absoluteString ?? "" } ?? webURL }
 
     var panelSize: CGSize { CGSize(width: panelW, height: panelH) }
 
@@ -189,7 +199,9 @@ final class NotchWindowController: NSWindowController {
         panel.frame = CGRect(x: 0, y: 0, width: panelW, height: panelH)
         panel.wantsLayer = true
         panel.layer?.backgroundColor = NSColor.black.cgColor
-        [scrollView, loadingPill, quitButton, lockButton, captureButton, moreButton].forEach(panel.addSubview)
+        webHost.wantsLayer = true
+        webHost.layer?.mask = webMask
+        [scrollView, webHost, loadingPill, quitButton, lockButton, captureButton, moreButton].forEach(panel.addSubview)
         for right in [false, true] {
             let grip = ResizeHandle(right: right)
             grip.wc = self
@@ -205,6 +217,7 @@ final class NotchWindowController: NSWindowController {
 
         applyCapture()
         applyLock()
+        applyAgent(reload: false)
         updateListButtons()
         setWebURL(webURL)   // also lays out the controls
 
@@ -262,6 +275,9 @@ final class NotchWindowController: NSWindowController {
         numberedButton.tint = .systemBlue
         numberedButton.onClick = { [weak self] in self?.textView.toggleList(.numbered) }
 
+        agentButton.isActive = true
+        agentButton.onClick = { [weak self] in self?.mobileAgent.toggle() }
+
         sizeField.onChange = { [weak self] in self?.setFontSize($0) }
         sizeField.onReturn = { [weak self] in self?.window?.makeFirstResponder(self?.textView) }
 
@@ -287,6 +303,7 @@ final class NotchWindowController: NSWindowController {
         clearButton.hoverFill = .clear
         clearButton.onClick = { [weak self] in
             guard let self else { return }
+            if let popup = self.popups.last { return self.closePopup(popup) }
             self.urlField.reset(to: "")
             self.setWebURL("")
             self.closeTray()
@@ -294,7 +311,7 @@ final class NotchWindowController: NSWindowController {
         }
         urlBox.addSubview(clearButton)
 
-        for b in [quitButton, lockButton, captureButton, moreButton, checklistButton, numberedButton, clearButton] {
+        for b in [quitButton, lockButton, captureButton, moreButton, checklistButton, numberedButton, agentButton, clearButton] {
             b.onHover = { [weak self, weak b] on in
                 if let self, let b { self.hover(b, on) }
             }
@@ -332,7 +349,8 @@ final class NotchWindowController: NSWindowController {
         // Content: notes or web page, below the notch
         let contentH = panelH - notchSize.height
         scrollView.frame = CGRect(x: 0, y: 0, width: panelW, height: contentH)
-        webView?.frame = scrollView.frame.insetBy(dx: webInset, dy: webInset)
+        webHost.frame = scrollView.frame.insetBy(dx: webInset, dy: webInset)
+        clearButton.hint = popups.isEmpty ? "Close Page" : "Close Pop-up"
         textView.minSize = CGSize(width: 0, height: scrollView.contentSize.height)
         textView.frame.size.width = scrollView.contentSize.width
         clipWebView()
@@ -354,11 +372,12 @@ final class NotchWindowController: NSWindowController {
             views.reduce(0) { $0 + $1.frame.width } + CGFloat(max(views.count - 1, 0)) * toolGap
         }
 
-        // Each side of the notch has the same space. The formatting tools only apply to notes,
-        // so they're hidden while a web page is shown
+        // Each side of the notch has the same space. The formatting tools only apply to notes and the
+        // agent button only to a page (where it sits just left of the URL field), so only one is shown at a time
         let side = (panelW - notchSize.width) / 2, toolsX = edgeInset + 2 * step
         let web = webView != nil
         formatTools.forEach { $0.isHidden = web }
+        agentButton.isHidden = !web
 
         // Tools stay beside the notch while they fit; the rest move into the tray, last one first
         var x = toolsX, overflow: [NSView] = []
@@ -375,11 +394,13 @@ final class NotchWindowController: NSWindowController {
         // Its minimum is the width it has at the moment the first tool overflows, so the two go together
         let rightFixed = edgeInset + step + notchGap
         let urlMinW = toolsX + rowWidth(formatTools) + notchGap - rightFixed - step
-        let urlRoom = side - rightFixed - (overflow.isEmpty ? 0 : step)
+        let urlRoom = side - rightFixed - (overflow.isEmpty ? 0 : step) - (web ? step : 0)
         if urlRoom >= urlMinW {
             urlBox.frame.size.width = urlRoom.rounded(.down)
             place(urlBox, in: panel, x: (overflow.isEmpty ? eyeX : moreX) - toolGap - urlBox.frame.width, y: y)
+            if web { place(agentButton, in: panel, x: urlBox.frame.minX - step, y: y) }
         } else {
+            if web { overflow.append(agentButton) }
             overflow.append(urlBox)
         }
 
@@ -408,22 +429,22 @@ final class NotchWindowController: NSWindowController {
     // Clip the web page to the visible part of the notch shape, inset by the border,
     // so the black border follows the shape while it expands and collapses
     func clipWebView() {
-        guard let wv = webView, let layer = wv.layer, let size = window?.contentView?.bounds.size else { return }
+        guard webView != nil, let size = window?.contentView?.bounds.size else { return }
         let r = shapeRadius(height: size.height, fullHeight: panelH)
 
         // Visible body of the notch shape (excluding the flared top corners), in panel coordinates
         let originX = (size.width - panelW) / 2, originY = size.height - panelH
         let body = CGRect(x: r - originX, y: -originY, width: size.width - 2 * r, height: size.height)
             .insetBy(dx: webInset, dy: webInset)
-        let visible = body.intersection(wv.frame)
+        let visible = body.intersection(webHost.frame)
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        webMask.frame = layer.bounds
+        webMask.frame = webHost.bounds
         if visible.isNull || visible.isEmpty {
             webMask.path = CGPath(rect: .zero, transform: nil)
         } else {
-            let rect = wv.convert(visible, from: panel)
+            let rect = webHost.convert(visible, from: panel)
             let cr = min(max(r - webInset, 0), rect.width / 2, rect.height / 2)
             // The inward curve only exists while the corner is gentler than the border is thick
             // (early in the expand animation it isn't; a plain rounded rect is fine for those frames)
@@ -439,9 +460,9 @@ final class NotchWindowController: NSWindowController {
                 path.addLine(to: CGPoint(x: v.minX + cr, y: v.maxY))
                 path.addArc(tangent1End: CGPoint(x: v.minX, y: v.maxY), tangent2End: CGPoint(x: v.minX, y: v.maxY - cr), radius: cr)
                 path.closeSubpath()
-                // Panel coordinates → the web view's (which may be flipped)
-                let o = wv.convert(CGPoint.zero, from: panel), up = wv.convert(CGPoint(x: 0, y: 1), from: panel)
-                var t = CGAffineTransform(a: 1, b: 0, c: 0, d: up.y - o.y, tx: o.x, ty: o.y)
+                // Panel coordinates → the web area's
+                let o = webHost.convert(CGPoint.zero, from: panel)
+                var t = CGAffineTransform(translationX: o.x, y: o.y)
                 webMask.path = path.copy(using: &t)
             } else {
                 webMask.path = CGPath(roundedRect: rect, cornerWidth: cr, cornerHeight: cr, transform: nil)
@@ -450,7 +471,6 @@ final class NotchWindowController: NSWindowController {
             loadingPill.setTrack(center: CGPoint(x: visible.midX, y: visible.minY - webInset / 2),
                                  maxWidth: visible.width - 2 * cr)
         }
-        layer.mask = webMask
         CATransaction.commit()
     }
 
@@ -461,15 +481,31 @@ final class NotchWindowController: NSWindowController {
         guard on else { return }
         hintTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self, weak b] _ in
             guard let self, let b, b.window != nil else { return }
-            self.hintLabel.stringValue = b.hint
-            let ls = self.hintLabel.fittingSize
-            let w = ls.width + 12, h = ls.height + 6
-            let a = b.convert(b.bounds, to: self.panel)
-            self.hintView.frame = CGRect(x: min(max(a.midX - w / 2, 6), self.panelW - w - 6),
-                                         y: a.minY - 6 - h, width: w, height: h)
-            self.hintLabel.frame = CGRect(x: 6, y: 3, width: ls.width, height: ls.height)
-            self.hintView.isHidden = false
+            self.showHint(b.hint, under: b.convert(b.bounds, to: self.panel))
         }
+    }
+
+    private func showHint(_ text: String, under a: CGRect) {
+        hintLabel.stringValue = text
+        let ls = hintLabel.fittingSize
+        let w = ls.width + 12, h = ls.height + 6
+        hintView.frame = CGRect(x: min(max(a.midX - w / 2, 6), panelW - w - 6), y: a.minY - 6 - h, width: w, height: h)
+        hintLabel.frame = CGRect(x: 6, y: 3, width: ls.width, height: ls.height)
+        hintView.isHidden = false
+    }
+
+    // A short notice under the notch (downloads)
+    private func flash(_ text: String) {
+        hintTimer?.invalidate()
+        showHint(text, under: CGRect(x: panelW / 2, y: panelH - notchSize.height + 2, width: 0, height: 0))
+        hintTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: false) { [weak self] _ in
+            self?.hintView.isHidden = true
+        }
+    }
+
+    // Keyboard focus goes to the page (or its pop-up), else the notes
+    private func focusContent() {
+        window?.makeFirstResponder(shownWeb ?? textView)
     }
 
     // MARK: - Web page
@@ -477,7 +513,7 @@ final class NotchWindowController: NSWindowController {
     @objc private func urlEntered() {
         setWebURL(urlField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
         closeTray()
-        window?.makeFirstResponder(webView ?? textView)
+        focusContent()
     }
 
     // What was typed is an address if it looks like one (scheme, dotted host, localhost); otherwise a Google search
@@ -493,6 +529,8 @@ final class NotchWindowController: NSWindowController {
 
     // Non-empty text shows a web page (or a search for it); empty returns to the notes
     private func setWebURL(_ text: String) {
+        popups.forEach(discard)
+        popups = []
         if !text.isEmpty, let url = destination(for: text) {
             (webView ?? makeWebView()).load(URLRequest(url: url))
             webURL = text
@@ -501,6 +539,8 @@ final class NotchWindowController: NSWindowController {
             webURL = ""
         }
         scrollView.isHidden = webView != nil
+        webHost.isHidden = webView == nil
+        webView?.isHidden = false
         clearButton.isHidden = webView == nil
         urlBox.layer?.backgroundColor = NSColor(white: 1, alpha: webView == nil ? 0.08 : 0.16).cgColor
         urlField.stringValue = webURL
@@ -516,43 +556,84 @@ final class NotchWindowController: NSWindowController {
             source: "const s = document.createElement('style'); s.textContent = '* { cursor: default !important; }'; document.documentElement.appendChild(s);",
             injectionTime: .atDocumentStart, forMainFrameOnly: false))
         // Identify as Safari (the embedded engine omits this), so sites serve the same pages Safari gets
-        let os = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
-        config.applicationNameForUserAgent = "Version/\(os >= 26 ? "\(os).0" : "18.5") Safari/605.1.15"
+        config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
 
         let wv = WKWebView(frame: .zero, configuration: config)
+        webView = wv
+        adopt(wv)
+        return wv
+    }
+
+    // Set-up shared by the page and its pop-ups
+    private func adopt(_ wv: WKWebView) {
+        wv.customUserAgent = mobileAgent ? mobileUserAgent : nil
         wv.underPageBackgroundColor = .black
-        wv.wantsLayer = true
         wv.navigationDelegate = self
         wv.uiDelegate = self
         wv.allowsBackForwardNavigationGestures = true
-        panel.addSubview(wv, positioned: .above, relativeTo: scrollView)
-        webView = wv
+        wv.frame = webHost.bounds
+        wv.autoresizingMask = [.width, .height]
+        webHost.addSubview(wv)
         applySystemTheme()
 
         // Loading pill follows the load; the URL field follows the page actually being shown
         let progress: (WKWebView) -> Void = { [weak self] wv in
-            self?.loadingPill.setProgress(wv.isLoading ? wv.estimatedProgress : nil)
+            guard let self, wv === self.shownWeb else { return }
+            self.loadingPill.setProgress(wv.isLoading ? wv.estimatedProgress : nil)
         }
-        webObservations = [wv.observe(\.estimatedProgress) { wv, _ in progress(wv) },
-                           wv.observe(\.isLoading) { wv, _ in progress(wv) },
-                           wv.observe(\.url) { [weak self] wv, _ in self?.pageURLChanged(wv.url) }]
+        webObservations[ObjectIdentifier(wv)] = [wv.observe(\.estimatedProgress) { wv, _ in progress(wv) },
+                                                 wv.observe(\.isLoading) { wv, _ in progress(wv) },
+                                                 wv.observe(\.url) { [weak self] wv, _ in self?.pageURLChanged(wv) }]
+    }
+
+    // A window the page opens from script (sign-in pop-ups mostly) covers the page until it closes itself or
+    // is closed with the × in the URL field. The page stays loaded underneath, so the two can still talk
+    private func openPopup(_ configuration: WKWebViewConfiguration) -> WKWebView {
+        let wv = WKWebView(frame: .zero, configuration: configuration)
+        popups.append(wv)
+        adopt(wv)
+        showTopWeb()
         return wv
     }
 
+    private func closePopup(_ wv: WKWebView) {
+        guard let i = popups.firstIndex(of: wv) else { return }
+        popups.remove(at: i)
+        discard(wv)
+        showTopWeb()
+    }
+
+    // Only the topmost web view is visible; the URL field, its × and the loading pill follow it
+    private func showTopWeb() {
+        let top = shownWeb
+        for wv in allWebViews where wv !== top { wv.isHidden = true }
+        top?.isHidden = false
+        urlField.reset(to: shownAddress)
+        loadingPill.reset()
+        if let top, top.isLoading { loadingPill.setProgress(top.estimatedProgress) }
+        layoutControls()
+        focusContent()
+    }
+
+    private func discard(_ wv: WKWebView) {
+        webObservations[ObjectIdentifier(wv)] = nil
+        wv.navigationDelegate = nil          // a load still in flight must not report back after closing
+        wv.stopLoading()
+        wv.removeFromSuperview()
+    }
+
     private func closeWebView() {
-        webObservations = []
-        webView?.navigationDelegate = nil    // a load still in flight must not report back after closing
-        webView?.stopLoading()
-        webView?.removeFromSuperview()
+        allWebViews.forEach(discard)
+        popups = []
         webView = nil
         loadingPill.reset()
     }
 
-    private func pageURLChanged(_ url: URL?) {
-        guard let url, url.scheme == "http" || url.scheme == "https" else { return }
-        webURL = url.absoluteString
-        if urlField.currentEditor() == nil {
-            urlField.stringValue = webURL
+    private func pageURLChanged(_ wv: WKWebView) {
+        guard let url = wv.url, url.scheme == "http" || url.scheme == "https" else { return }
+        if wv === webView { webURL = url.absoluteString }
+        if wv === shownWeb, urlField.currentEditor() == nil {
+            urlField.stringValue = url.absoluteString
             urlField.updateFades()
         }
     }
@@ -560,10 +641,39 @@ final class NotchWindowController: NSWindowController {
     // Web pages see the system's light/dark setting via prefers-color-scheme
     private func applySystemTheme() {
         let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        webView?.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        allWebViews.forEach { $0.appearance = NSAppearance(named: dark ? .darkAqua : .aqua) }
+    }
+
+    private var safariVersion: String {
+        let os = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        return os >= 26 ? "\(os).0" : "18.5"
+    }
+
+    // iPhone Safari, so sites serve their mobile pages; nil falls back to the desktop Safari agent.
+    // Like Safari itself from iOS 26 on, the OS version stays at 18_6 and only Version/ moves on
+    private var mobileUserAgent: String {
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+            + "Version/\(safariVersion) Mobile/15E148 Safari/604.1"
     }
 
     // MARK: - Toggles, lists and font
+
+    // The button shows the agent in use; the open page is reloaded so the site sees the new one
+    private func applyAgent(reload: Bool) {
+        agentButton.symbol = mobileAgent ? "iphone" : "desktopcomputer"
+        agentButton.hint = mobileAgent ? "Switch to Desktop Site" : "Switch to Mobile Site"
+        agentButton.tint = mobileAgent ? .systemPurple : .systemTeal
+        guard let wv = webView else { return }
+        allWebViews.forEach { $0.customUserAgent = mobileAgent ? mobileUserAgent : nil }
+        guard reload else { return }
+        // A service worker the page installed under the other agent answers the reload itself, with that
+        // agent's page, so the page's workers are dropped first
+        let dropWorkers = "if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();"
+        wv.callAsyncJavaScript(dropWorkers, arguments: [:], in: nil, in: .page) { [weak self, weak wv] _ in
+            guard let self, let wv, wv === self.webView else { return }
+            wv.reloadFromOrigin()   // skip the cache: it holds the other agent's copy of the page
+        }
+    }
 
     private func applyCapture() {
         window?.sharingType = hiddenFromCapture ? .none : .readOnly
@@ -650,20 +760,20 @@ final class NotchWindowController: NSWindowController {
         } completionHandler: { [weak self] in
             guard let self, self.animationID == id else { return }
             win.makeKeyAndOrderFront(nil)
-            win.makeFirstResponder(self.webView ?? self.textView)
+            self.focusContent()
         }
     }
 
     // Shrink back to the notch, then fade out
     private func collapse() {
-        guard isExpanded, !isLocked, let win = window else { return }
+        guard isExpanded, !isLocked, let win = window, win.attachedSheet == nil else { return }
         hoverTimer?.invalidate()
         isExpanded = false
         animationID += 1
         let id = animationID
         hintView.isHidden = true
         closeTray()
-        urlField.reset(to: webURL)   // drop unsubmitted edits
+        urlField.reset(to: shownAddress)   // drop unsubmitted edits
         sizeField.cancel()
         win.resignKey()
 
@@ -694,8 +804,9 @@ final class NotchWindowController: NSWindowController {
 
 // MARK: - Web view delegates
 
-extension NotchWindowController: WKNavigationDelegate, WKUIDelegate {
+extension NotchWindowController: WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        guard webView === shownWeb else { return }
         loadingPill.reset()
         loadingPill.setProgress(webView.estimatedProgress)
     }
@@ -703,14 +814,115 @@ extension NotchWindowController: WKNavigationDelegate, WKUIDelegate {
     // Only a page that never arrived counts as a failure: the address couldn't be reached at all
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         let e = error as NSError
-        guard webView === self.webView, e.domain == NSURLErrorDomain, e.code != NSURLErrorCancelled else { return }
+        guard webView === shownWeb, e.domain == NSURLErrorDomain, e.code != NSURLErrorCancelled else { return }
         loadingPill.setFailed()
     }
 
-    // Links that ask for a new tab or window (target="_blank", window.open) open in the panel instead
+    // MARK: Pop-ups
+
+    // Links that ask for a new tab or window (target="_blank") open in the panel instead.
+    // Windows opened from script get a real web view, so the page that opened them can hear back
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-        if navigationAction.targetFrame == nil { webView.load(navigationAction.request) }
-        return nil
+        guard navigationAction.targetFrame == nil else { return nil }
+        if navigationAction.navigationType == .linkActivated {
+            webView.load(navigationAction.request)
+            return nil
+        }
+        return openPopup(configuration)
     }
+
+    func webViewDidClose(_ webView: WKWebView) { closePopup(webView) }
+
+    // MARK: Dialogs
+
+    // Attached to the panel as a sheet: on its own, an alert would open behind the panel, which sits above
+    // every other window. It is a window of its own, so it is given the panel's screen-capture setting
+    private func ask(_ message: String, input: String? = nil, cancel: Bool = false,
+                     done: @escaping (_ ok: Bool, _ text: String?) -> Void) {
+        guard let win = window else { return done(false, nil) }
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.addButton(withTitle: "OK")
+        if cancel { alert.addButton(withTitle: "Cancel") }
+        let field = NSTextField(frame: CGRect(x: 0, y: 0, width: 240, height: 22))
+        if let input {
+            field.stringValue = input
+            alert.accessoryView = field
+            alert.window.initialFirstResponder = field
+        }
+        alert.window.sharingType = win.sharingType
+        NSApp.activate(ignoringOtherApps: true)
+        alert.beginSheetModal(for: win) { response in
+            let ok = response == .alertFirstButtonReturn
+            done(ok, ok && input != nil ? field.stringValue : nil)
+        }
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+        ask(message) { _, _ in completionHandler() }
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+        ask(message, cancel: true) { ok, _ in completionHandler(ok) }
+    }
+
+    func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (String?) -> Void) {
+        ask(prompt, input: defaultText ?? "", cancel: true) { _, text in completionHandler(text) }
+    }
+
+    // File inputs
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        let chooser = NSOpenPanel()
+        chooser.allowsMultipleSelection = parameters.allowsMultipleSelection
+        chooser.canChooseDirectories = parameters.allowsDirectories
+        NSApp.activate(ignoringOtherApps: true)
+        chooser.begin { completionHandler($0 == .OK ? chooser.urls : nil) }
+    }
+
+    // MARK: Downloads
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        decisionHandler(navigationAction.shouldPerformDownload ? .download : .allow)
+    }
+
+    // Anything sent as an attachment, or that the web view can't display, is saved instead
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
+                 decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        let disposition = (navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")
+        let attachment = disposition?.lowercased().hasPrefix("attachment") ?? false
+        decisionHandler(attachment || !navigationResponse.canShowMIMEType ? .download : .allow)
+    }
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        download.delegate = self
+    }
+
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        download.delegate = self
+    }
+
+    // Saved into Downloads, numbered if the name is taken
+    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String,
+                  completionHandler: @escaping (URL?) -> Void) {
+        let folder = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+        let name = suggestedFilename as NSString
+        var url = folder.appendingPathComponent(suggestedFilename), n = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            let numbered = "\(name.deletingPathExtension) \(n)"
+            url = folder.appendingPathComponent(name.pathExtension.isEmpty ? numbered : "\(numbered).\(name.pathExtension)")
+            n += 1
+        }
+        flash("Downloading \(url.lastPathComponent)")
+        completionHandler(url)
+    }
+
+    func downloadDidFinish(_ download: WKDownload) { flash("Saved to Downloads") }
+
+    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) { flash("Download failed") }
 }

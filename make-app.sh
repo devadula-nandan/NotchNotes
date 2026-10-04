@@ -27,6 +27,8 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
     <key>LSMinimumSystemVersion</key>      <string>13.0</string>
     <key>LSUIElement</key>                 <true/>
     <key>NSHighResolutionCapable</key>     <true/>
+    <key>NSCameraUsageDescription</key>     <string>Web pages you open can ask to use the camera.</string>
+    <key>NSMicrophoneUsageDescription</key> <string>Web pages you open can ask to use the microphone.</string>
 </dict>
 </plist>
 EOF
