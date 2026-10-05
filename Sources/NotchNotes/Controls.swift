@@ -49,6 +49,68 @@ final class IconButton: NSView {
     override func mouseExited(with event: NSEvent) { hovering = false; onHover?(false) }
     override func mouseDown(with event: NSEvent) { onHover?(false); onClick?() }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    // VoiceOver: a button named by its hint, which already says what a press will do
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
+    override func accessibilityLabel() -> String? { hint }
+    override func accessibilityPerformPress() -> Bool {
+        onClick?()
+        return true
+    }
+}
+
+// MARK: - Note dots (one per note under the notes, then a + for a new one)
+
+final class NotePager: NSView {
+    var onSelect: ((Int) -> Void)?
+    var onAdd: (() -> Void)?
+    private var count = 1
+    private var current = 0
+
+    // One slot per dot and one for the +; the slots narrow if the panel can't fit them all
+    var idealWidth: CGFloat { CGFloat(count + 1) * 14 }
+    private var slot: CGFloat { bounds.width / CGFloat(count + 1) }
+
+    func set(count: Int, current: Int) {
+        self.count = max(count, 1)
+        self.current = current
+        needsDisplay = true
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let y = bounds.midY
+        for i in 0..<count {
+            let x = slot * (CGFloat(i) + 0.5), r: CGFloat = i == current ? 2.5 : 2
+            NSColor(white: 1, alpha: i == current ? 0.85 : 0.3).setFill()
+            NSBezierPath(ovalIn: CGRect(x: x - r, y: y - r, width: 2 * r, height: 2 * r)).fill()
+        }
+        let x = slot * (CGFloat(count) + 0.5), arm: CGFloat = 3
+        let plus = NSBezierPath()
+        plus.move(to: NSPoint(x: x - arm, y: y))
+        plus.line(to: NSPoint(x: x + arm, y: y))
+        plus.move(to: NSPoint(x: x, y: y - arm))
+        plus.line(to: NSPoint(x: x, y: y + arm))
+        plus.lineWidth = 1.3
+        plus.lineCapStyle = .round
+        NSColor(white: 1, alpha: 0.45).setStroke()
+        plus.stroke()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let i = Int(convert(event.locationInWindow, from: nil).x / max(slot, 1))
+        if i < count { onSelect?(max(i, 0)) } else { onAdd?() }
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func isAccessibilityElement() -> Bool { true }
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
+    override func accessibilityLabel() -> String? { "Note \(current + 1) of \(count). Press for a new note" }
+    override func accessibilityPerformPress() -> Bool {
+        onAdd?()
+        return true
+    }
 }
 
 // MARK: - Arrow-only text view (the app never changes the cursor)
@@ -225,6 +287,7 @@ final class FontSizeField: NSView, NSTextFieldDelegate {
         field.target = self
         field.action = #selector(commit)
         field.delegate = self
+        field.setAccessibilityLabel("Font Size")
         addSubview(field)
     }
 

@@ -1,12 +1,16 @@
 import Cocoa
+import Carbon.HIToolbox
 
 // MARK: - Persistence
 
-let notesURL: URL = {
-    let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+// Where the notes are kept. `defaults write com.local.notchnotes notesFolder <path>` moves them,
+// for example into a synced folder
+let notesFolder: URL = {
+    if let custom = UserDefaults.standard.string(forKey: "notesFolder"), !custom.isEmpty {
+        return URL(fileURLWithPath: (custom as NSString).expandingTildeInPath, isDirectory: true)
+    }
+    return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("NotchNotes")
-    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    return dir.appendingPathComponent("notes.txt")
 }()
 
 func stored(_ key: String, default value: CGFloat) -> CGFloat {
@@ -20,8 +24,10 @@ func store(_ value: CGFloat, _ key: String) {
 
 // MARK: - Notch geometry
 
+// Without a notch it is the primary screen (the one with the menu bar). Not NSScreen.main: that one
+// follows keyboard focus, which would move the panel between screens
 var notchScreen: NSScreen {
-    NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.main ?? NSScreen.screens[0]
+    NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens.first ?? NSScreen.main ?? NSScreen()
 }
 
 var notchSize: CGSize {
@@ -37,6 +43,7 @@ var notchSize: CGSize {
 let expandedRadius:  CGFloat = 16
 let collapsedRadius: CGFloat = 8
 let animDuration:    TimeInterval = 0.22
+let hoverDelay:      TimeInterval = 0.1     // how long the mouse rests on the notch before the panel opens
 let edgeInset: CGFloat = 12                 // quit / eye distance from the side edges
 let toolW:     CGFloat = 24
 let toolH:     CGFloat = 20
@@ -47,6 +54,8 @@ let clearW:    CGFloat = 16                 // clear button inside the URL field
 let webInset:  CGFloat = 6                  // black border around web pages
 let inkColor = NSColor(white: 0.92, alpha: 1)    // notes and field text
 let topLevel = Int(CGWindowLevelForKey(.maximumWindow))   // same level as Teams' share border
+let hotKeyCode = UInt32(kVK_ANSI_N)                       // ⌃⌥N opens and closes the panel from anywhere
+let hotKeyModifiers = UInt32(controlKey | optionKey)
 
 // Corner radius of the notch shape at a given window height (grows as it expands)
 func shapeRadius(height h: CGFloat, fullHeight: CGFloat) -> CGFloat {
@@ -63,5 +72,32 @@ func cornerCurve(radius r: CGFloat, inset d: CGFloat, steps: Int = 24) -> [CGPoi
         let t = CGFloat(i) / CGFloat(steps), u = 1 - t
         let n = (u * u + t * t).squareRoot()
         return CGPoint(x: t * t * r + d * u / n, y: u * u * r + d * t / n)
+    }
+}
+
+// MARK: - Global hotkey
+
+// A system-wide key combination. Carbon hotkeys need no accessibility permission
+final class HotKey {
+    private var hotKey: EventHotKeyRef?
+    private var handler: EventHandlerRef?
+    private let action: () -> Void
+
+    init(keyCode: UInt32, modifiers: UInt32, action: @escaping () -> Void) {
+        self.action = action
+        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(GetApplicationEventTarget(), { _, _, context in
+            guard let context else { return noErr }
+            Unmanaged<HotKey>.fromOpaque(context).takeUnretainedValue().action()
+            return noErr
+        }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
+        // Fails quietly if another app already has the combination
+        RegisterEventHotKey(keyCode, modifiers, EventHotKeyID(signature: OSType(0x4E_4F_54_43), id: 1),
+                            GetApplicationEventTarget(), 0, &hotKey)
+    }
+
+    deinit {
+        if let hotKey { UnregisterEventHotKey(hotKey) }
+        if let handler { RemoveEventHandler(handler) }
     }
 }
