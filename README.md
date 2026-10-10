@@ -1,116 +1,116 @@
 # NotchNotes
 
-A lightweight macOS notepad that lives inside your MacBook's notch. Hover over the notch to reveal a dark floating panel where you can take notes, manage checklists, or load any webpage, all without leaving your current app.
+**A notepad that lives in your MacBook's notch.**
 
-> Requires macOS 13 Ventura or later on a Mac with a notch (M-series MacBook Pro/Air). Works on non-notch Macs too, centering at the top of the screen.
+Hover over the notch and a panel drops down with your notes, a checklist or any web page. Move away and it disappears. There is no Dock icon, no menu bar icon and no window to manage.
 
----
-
-## Demo
+[Features](#features) · [Install](#install) · [Usage](#usage) · [Your notes](#your-notes) · [Build from source](#build-from-source)
 
 https://github.com/user-attachments/assets/21a1e01f-e46a-49fc-b3f6-b9cb442a801e
 
----
+**Requirements:** macOS 13 Ventura or later. Designed for Macs with a notch; on other Macs the panel sits at the top center of the screen.
 
 ## Features
 
-- **Lives in the notch**: hovers silently at the top of your screen; expands when the mouse rests on the notch for a moment, disappears when you move away. It follows the notch when displays are added, removed or rearranged.
-- **Global hotkey**: ⌃⌥N opens the panel from anywhere, ready to type, and closes it again. Esc closes it too.
-- **Persistent notes**: your text is auto-saved to `~/Library/Application Support/NotchNotes/notes.txt` and restored on relaunch. The first save of each launch keeps the previous version as `notes.txt.bak`, and a file that can't be read is never saved over.
-- **Several notes**: the dots under the notes switch between them and `+` starts a new one (also ⌘N, ⌘⇧[ and ⌘⇧]). Extra notes are saved as `notes-2.txt`, `notes-3.txt`, … and a note left empty is removed.
-- **Notes folder of your choice**: `defaults write com.local.notchnotes notesFolder ~/path/to/folder` keeps the notes somewhere else, such as a synced folder. Relaunch to apply.
-- **Checkbox lists**: type `- [ ] item` or click the checklist toolbar button to toggle a to-do list. Click any checkbox to check/uncheck it. Checked items are struck through, dimmed and moved below the unchecked ones in their list automatically.
-- **Numbered lists**: one-click numbered-list formatting with the same smart toggle/remove logic. Enter continues the list and keeps the numbers in order.
-- **Bullets and indenting**: Enter continues a `- item` list as well. Tab and Shift-Tab move list items in and out a level.
-- **Links**: addresses in the notes are underlined; ⌘-click one to open it in the panel.
-- **Inline web view**: paste a URL into the URL bar and press Return to embed any webpage in the panel. Plain text that isn't an address runs a web search. Addresses on `localhost`, `.local` or a bare IP load over `http`. Press Return on an empty URL field to return to notes. The URL is remembered across relaunches.
-- **Audio indicator**: a page keeps playing after the panel closes. While it is playing audio, a thin line shows around the notch with pulses running up it, so you can tell where the audio is coming from.
-- **Lock open**: click the lock icon next to the quit button to keep the panel open when the mouse leaves; click again to unlock. The lock is remembered across relaunches.
-- **Resizable panel**: drag the bottom-left or bottom-right corner grips to resize the panel. Width and height are saved and restored.
-- **Adjustable font size**: a small number field in the toolbar sets the monospaced editor font size (10–24 pt). Type a size and press Return, or step it with the field's up / down arrows or the ↑ / ↓ keys. Persisted across launches.
-- **Screen-recording privacy**: by default the window is excluded from screen captures and recordings. Click the eye icon in the top-right to toggle visibility in screen shares.
-- **Overflow toolbar tray**: on narrower panels, toolbar buttons collapse into a `…` menu so nothing is ever clipped.
-- **Smooth expand/collapse animation**: 220 ms ease-out expand, ease-in collapse with a 150 ms fade.
-- **Updates itself**: at launch the app checks its GitHub releases. When a newer version is out, a cloud button appears next to the quit button until the panel has been open for a minute; hover it to see the version. The lock moves over for it, into the `…` tray on a narrow panel. Click it and the app downloads that release, replaces itself and relaunches, with no manual download or `xattr`.
-- **Stays on top**: the panel puts itself back in front when another app's overlay, such as a screen-share border, gets in front of it.
-- **Keyboard shortcuts**: standard ⌘A, ⌘C, ⌘V, ⌘X, ⌘Z, ⌘⇧Z, ⌘Q all work even though the app has no Dock icon or menu bar. ⌘L jumps to the URL field; ⌘[, ⌘] and ⌘R go back, forward and reload a page.
-- **VoiceOver**: the toolbar buttons and fields are labelled.
-- **Dark appearance**: panel is always dark; embedded web pages follow the system light/dark setting via `prefers-color-scheme`.
-- **No Dock icon, no menu bar icon**: pure accessory app that stays out of your way.
+### Notes
 
----
+- **Saved as you type**: notes are plain text files, restored the next time the app opens.
+- **Several notes**: the dots under the text switch between notes, and `+` starts a new one.
+- **Checklists**: type `- [ ] item` or use the checklist button. Click a box to check it; checked items are struck through and move below the unchecked ones.
+- **Numbered and bulleted lists**: Enter continues the list and keeps the numbers in order. Tab and Shift-Tab move an item in or out a level.
+- **Links**: addresses in your notes are underlined. ⌘-click one to open it in the panel.
+- **Font size**: set the editor font from 10 to 24 pt in the toolbar.
 
-## Installation (pre-built, recommended)
+### Web pages
 
-1. Go to the [**Releases**](../../releases) page and download **NotchNotes-vX.Y.Z.zip** from the latest release.
-2. Unzip it to get **NotchNotes.app**.
-3. Move `NotchNotes.app` to your `/Applications` folder.
-4. **First launch:** macOS will block the app with a *"cannot be verified"* warning because it is ad-hoc signed, not notarized. Run this once in Terminal to clear it:
+- **Any page in the panel**: type an address in the URL field and press Return. Text that isn't an address runs a web search. The page is remembered across launches.
+- **Mobile or desktop site**: one button switches between the two.
+- **Audio indicator**: a page keeps playing after the panel closes, and a thin line pulses around the notch while it does.
+- **Downloads**: files are saved to your Downloads folder.
+- **Local addresses**: `localhost`, `.local` and bare IP addresses load over `http`.
+- **Light and dark**: pages follow the system appearance. The panel itself is always dark.
+
+### The panel
+
+- **Opens on hover or by hotkey**: rest the mouse on the notch, or press ⌃⌥N from any app.
+- **Lock open**: the lock button keeps the panel open when the mouse leaves, and stays set across launches.
+- **Resizable**: drag either bottom corner. The size is remembered.
+- **Hidden from screen sharing**: by default the panel is left out of screen recordings and screen shares. The eye button shows it.
+- **Stays in front**: the panel returns to the front when another app's overlay, such as a screen-share border, covers it.
+- **Fits any width**: toolbar buttons that don't fit move into a `…` tray.
+- **Follows your displays**: the panel moves with the notch when displays are added, removed or rearranged.
+- **Accessible**: toolbar buttons and fields are labelled for VoiceOver.
+
+### Updates
+
+NotchNotes checks its GitHub releases at launch. When a newer version is available, a cloud button appears next to the quit button; hover it to see the version. Click it and the app downloads the release, replaces itself and relaunches.
+
+The button goes away once the panel has been open for a minute, and returns at the next launch.
+
+## Install
+
+1. Download `NotchNotes-vX.Y.Z.zip` from the [latest release](https://github.com/devadula-nandan/NotchNotes/releases/latest).
+2. Unzip it and move `NotchNotes.app` to `/Applications`.
+3. Clear the macOS quarantine flag. This is needed once, because the app is ad-hoc signed rather than notarized:
    ```bash
    xattr -cr /Applications/NotchNotes.app
    ```
-   Then double-click the app normally. You will not see this prompt again.
-5. Hover over the notch (or the top-center of the screen) to confirm it works.
-6. Notes are saved in `~/Library/Application Support/NotchNotes`
+4. Open the app and hover over the notch.
 
-**Auto-start on login (optional)**  
-System Settings → General → Login Items → click **+** → select `NotchNotes.app`.
+Later versions arrive through the [update button](#updates), so these steps are not repeated.
 
----
+**Start at login (optional):** System Settings → General → Login Items → **+** → select `NotchNotes.app`.
 
-## Build from source
-
-Requires [Swift](https://swift.org) (ships with Xcode or the Xcode Command Line Tools).
-
-```bash
-# Clone
-git clone https://github.com/devadula-nandan/NotchNotes.git
-cd NotchNotes
-
-# Build the .app bundle (compiles in release mode, ad-hoc signs)
-bash make-app.sh
-
-# Run it
-open NotchNotes.app
-```
-
-The script produces a self-contained `NotchNotes.app` in the project root.
-
-### Dev mode
-
-```bash
-bash dev.sh
-```
-
-Builds in debug mode, launches the app, and rebuilds and relaunches it whenever a file under `Sources/` or `Package.swift` changes. If a build fails, the previous build keeps running. It quits an installed `NotchNotes.app` first, since both would share the same notes file. Press Ctrl+C to stop.
-
-### Tests
-
-```bash
-bash test.sh
-```
-
-Runs the tests for the text, address and storage logic in `Sources/NotchNotesCore`. With full Xcode installed, `swift test` works as well.
-
----
-
-## Usage tips
+## Usage
 
 | Action | How |
 |---|---|
-| Open the panel | Hover over the notch / top-center, or press ⌃⌥N |
-| Close the panel | Move the mouse away, or press Esc (in the notes) or ⌃⌥N |
-| Switch notes | Click a dot under the notes, or press ⌘⇧[ / ⌘⇧] |
-| New note | Click the `+` after the dots, or press ⌘N |
+| Open the panel | Hover over the notch, or press ⌃⌥N |
+| Close the panel | Move the mouse away, press ⌃⌥N, or press Esc while in the notes |
+| New note | Click `+` after the dots, or press ⌘N |
+| Switch notes | Click a dot, or press ⌘⇧[ / ⌘⇧] |
+| Check or uncheck an item | Click its box |
 | Indent a list item | Tab / Shift-Tab |
-| Open a link in the notes | ⌘-click it |
-| Toggle a checkbox | Click the box, or use the checklist button |
-| Load a webpage | Click the URL field (or press ⌘L), paste a URL, press Return |
-| Return to notes | Clear the URL field and press Return |
-| Resize | Drag the bottom-left or bottom-right corner grip |
-| Quit | Click the red dot in the top-left, or press ⌘Q |
+| Open a link from the notes | ⌘-click it |
+| Go to the URL field | ⌘L |
+| Load a page | Type an address or a search, then press Return |
+| Back, forward, reload | ⌘[ / ⌘] / ⌘R |
+| Return to the notes | Click × in the URL field, or clear the field and press Return |
+| Resize the panel | Drag either bottom corner |
+| Quit | Click the red dot in the top left, or press ⌘Q |
 
----
+The standard editing shortcuts (⌘A, ⌘C, ⌘V, ⌘X, ⌘Z, ⌘⇧Z) work as usual.
+
+## Your notes
+
+Notes are plain text files in `~/Library/Application Support/NotchNotes`: `notes.txt`, then `notes-2.txt`, `notes-3.txt` and so on.
+
+- The first save of each launch keeps the previous version as `notes.txt.bak`.
+- A file that can't be read is never saved over.
+- A note left empty is removed.
+
+To keep the notes somewhere else, such as a synced folder, set the folder and relaunch:
+
+```bash
+defaults write com.local.notchnotes notesFolder ~/path/to/folder
+```
+
+## Build from source
+
+Requires [Swift](https://swift.org), which ships with Xcode and the Xcode Command Line Tools.
+
+```bash
+git clone https://github.com/devadula-nandan/NotchNotes.git
+cd NotchNotes
+bash make-app.sh      # release build, ad-hoc signed
+open NotchNotes.app
+```
+
+| Script | What it does |
+|---|---|
+| `bash make-app.sh` | Builds a self-contained `NotchNotes.app` in the project root. |
+| `bash dev.sh` | Builds in debug mode, launches the app, and rebuilds and relaunches it when a file under `Sources/` or `Package.swift` changes. A failed build leaves the previous one running. It quits an installed `NotchNotes.app` first, since both would share the same notes. Ctrl+C stops it. |
+| `bash test.sh` | Runs the tests for the text, address and storage logic in `Sources/NotchNotesCore`. With full Xcode installed, `swift test` works as well. |
 
 ## License
 
