@@ -280,6 +280,10 @@ final class NoteTextView: ArrowTextView {
             onOpenLink?(url)
         } else if let box = boxes.first(where: { boxRect(for: $0.range).insetBy(dx: -4, dy: -4).contains(p) }) {
             replace(box.mark, with: box.checked ? " " : "x")
+            // Checked items go below the unchecked ones of their list
+            if let list = ListText.checkedLast(string, at: box.range.location) {
+                replace(list.range, with: list.text, caret: selectedRange().location)
+            }
         } else {
             super.mouseDown(with: event)
         }

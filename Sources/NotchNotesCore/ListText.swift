@@ -89,6 +89,22 @@ public enum ListText {
         return edits
     }
 
+    // One checklist: checkbox lines right under one another at the same indent
+    private static let checklistRegex = try! NSRegularExpression(
+        pattern: "^([ \\t]*)[-*+] ?\\[[ xX]?\\].*(?:\\n\\1[-*+] ?\\[[ xX]?\\].*)*$", options: .anchorsMatchLines)
+
+    // The checklist around `location` with its checked items moved below the unchecked ones: the range to replace
+    // and the text to put there. nil when it is already in order
+    public static func checkedLast(_ string: String, at location: Int) -> (range: NSRange, text: String)? {
+        guard let list = checklistRegex.matches(in: string, range: NSRange(location: 0, length: string.utf16.count))
+            .first(where: { NSLocationInRange(location, $0.range) })?.range else { return nil }
+        let lines = (string as NSString).substring(with: list).components(separatedBy: "\n")
+        // The mark is what sits right before the first "]"
+        func checked(_ line: String) -> Bool { line.prefix { $0 != "]" }.last?.lowercased() == "x" }
+        let sorted = lines.filter { !checked($0) } + lines.filter(checked)
+        return sorted == lines ? nil : (list, sorted.joined(separator: "\n"))
+    }
+
     // Tab / Shift-Tab on a block of whole lines: its list items move one level in or out.
     // nil when the block has no list items, so Tab keeps its usual meaning there
     public static func indented(_ block: String, outdent: Bool) -> String? {

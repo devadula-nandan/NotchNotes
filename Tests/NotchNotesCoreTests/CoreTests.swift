@@ -71,6 +71,18 @@ import Testing
         #expect(edits[0].number == "10")
     }
 
+    @Test func checkedItemsGoBelowTheUnchecked() {
+        let text = "- [x] a\n- [ ] b\n- [ ] c\n\n- [x] d\n  - [x] e\n  - [ ] f"
+        // Only the list around the location is sorted, and a nested list is one of its own
+        let top = ListText.checkedLast(text, at: 0)
+        #expect(top?.range == NSRange(location: 0, length: 23))
+        #expect(top?.text == "- [ ] b\n- [ ] c\n- [x] a")
+        #expect(ListText.checkedLast(text, at: 35)?.text == "  - [ ] f\n  - [x] e")
+        // Nothing to do: already in order, or not a checkbox line
+        #expect(ListText.checkedLast("- [ ] a\n- [x] b", at: 0) == nil)
+        #expect(ListText.checkedLast("plain\n- [x] a", at: 0) == nil)
+    }
+
     @Test func indentMovesOnlyListItems() {
         #expect(ListText.indented("- [ ] a\nplain\n1. b\n", outdent: false) == "  - [ ] a\nplain\n  1. b\n")
         #expect(ListText.indented("  - a\n\t- b\n - c\n- d", outdent: true) == "- a\n- b\n- c\n- d")

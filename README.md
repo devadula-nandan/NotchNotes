@@ -19,7 +19,7 @@ https://github.com/user-attachments/assets/21a1e01f-e46a-49fc-b3f6-b9cb442a801e
 - **Persistent notes**: your text is auto-saved to `~/Library/Application Support/NotchNotes/notes.txt` and restored on relaunch. The first save of each launch keeps the previous version as `notes.txt.bak`, and a file that can't be read is never saved over.
 - **Several notes**: the dots under the notes switch between them and `+` starts a new one (also ⌘N, ⌘⇧[ and ⌘⇧]). Extra notes are saved as `notes-2.txt`, `notes-3.txt`, … and a note left empty is removed.
 - **Notes folder of your choice**: `defaults write com.local.notchnotes notesFolder ~/path/to/folder` keeps the notes somewhere else, such as a synced folder. Relaunch to apply.
-- **Checkbox lists**: type `- [ ] item` or click the checklist toolbar button to toggle a to-do list. Click any checkbox to check/uncheck it. Checked items are struck through and dimmed automatically.
+- **Checkbox lists**: type `- [ ] item` or click the checklist toolbar button to toggle a to-do list. Click any checkbox to check/uncheck it. Checked items are struck through, dimmed and moved below the unchecked ones in their list automatically.
 - **Numbered lists**: one-click numbered-list formatting with the same smart toggle/remove logic. Enter continues the list and keeps the numbers in order.
 - **Bullets and indenting**: Enter continues a `- item` list as well. Tab and Shift-Tab move list items in and out a level.
 - **Links**: addresses in the notes are underlined; ⌘-click one to open it in the panel.
