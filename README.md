@@ -4,9 +4,9 @@
 
 Hover over the notch and a panel drops down with your notes, a checklist or any web page. Move away and it disappears. There is no Dock icon, no menu bar icon and no window to manage.
 
-[Website](https://devadula-nandan.github.io/NotchNotes/) · [Features](#features) · [Install](#install) · [Usage](#usage) · [Your notes](#your-notes) · [Build from source](#build-from-source)
+[Website](https://devadula-nandan.github.io/notch-notes/) · [Features](#features) · [Install](#install) · [Usage](#usage) · [Your notes](#your-notes) · [Build from source](#build-from-source)
 
-[![A tour of NotchNotes: notes, checklists, lists, web pages, screen sharing and updates, each shown in the panel under the notch](docs/screenshots/tour.webp)](https://devadula-nandan.github.io/NotchNotes/)
+[![A tour of NotchNotes: notes, checklists, lists, web pages, screen sharing and updates, each shown in the panel under the notch](docs/screenshots/tour.webp)](https://devadula-nandan.github.io/notch-notes/)
 
 **Requirements:** macOS 13 Ventura or later. Designed for Macs with a notch; on other Macs the panel sits at the top center of the screen.
 
@@ -49,7 +49,7 @@ The button goes away once the panel has been open for a minute, and returns at t
 
 ## Install
 
-1. Download `NotchNotes-vX.Y.Z.zip` from the [latest release](https://github.com/devadula-nandan/NotchNotes/releases/latest).
+1. Download `NotchNotes-vX.Y.Z.zip` from the [latest release](https://github.com/devadula-nandan/notch-notes/releases/latest).
 2. Unzip it and move `NotchNotes.app` to `/Applications`.
 3. Clear the macOS quarantine flag. This is needed once, because the app is ad-hoc signed rather than notarized:
    ```bash
@@ -100,8 +100,8 @@ defaults write com.local.notchnotes notesFolder ~/path/to/folder
 Requires [Swift](https://swift.org), which ships with Xcode and the Xcode Command Line Tools.
 
 ```bash
-git clone https://github.com/devadula-nandan/NotchNotes.git
-cd NotchNotes
+git clone https://github.com/devadula-nandan/notch-notes.git
+cd notch-notes
 bash make-app.sh      # release build, ad-hoc signed
 open NotchNotes.app
 ```

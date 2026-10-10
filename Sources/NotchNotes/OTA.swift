@@ -3,7 +3,7 @@ import Cocoa
 // Over-the-air updates: the app looks at its GitHub releases when it starts and can replace itself with a newer
 // one, so there is nothing to download, move or un-quarantine by hand
 enum OTA {
-    private static let latest = URL(string: "https://api.github.com/repos/devadula-nandan/NotchNotes/releases/latest")!
+    private static let latest = URL(string: "https://api.github.com/repos/devadula-nandan/notch-notes/releases/latest")!
 
     // Calls back with the latest release when it is newer than this app: its tag and the zip of the app.
     // Stays quiet otherwise, also in a dev build, which has no version of its own
