@@ -69,7 +69,8 @@ extension NotchWindowController {
         }
         webObservations[ObjectIdentifier(wv)] = [wv.observe(\.estimatedProgress) { wv, _ in progress(wv) },
                                                  wv.observe(\.isLoading) { wv, _ in progress(wv) },
-                                                 wv.observe(\.url) { [weak self] wv, _ in self?.pageURLChanged(wv) }]
+                                                 wv.observe(\.url) { [weak self] wv, _ in self?.pageURLChanged(wv) },
+                                                 wv.observe(\.isPlayingSound) { [weak self] _, _ in self?.updateSoundLine() }]
     }
 
     // A window the page opens from script (sign-in pop-ups mostly) covers the page until it closes itself or
@@ -87,6 +88,7 @@ extension NotchWindowController {
         popups.remove(at: i)
         discard(wv)
         showTopWeb()
+        updateSoundLine()   // the sound may have been its own
     }
 
     // Only the topmost web view is visible; the URL field, its × and the loading pill follow it
@@ -266,4 +268,17 @@ extension NotchWindowController: WKNavigationDelegate, WKUIDelegate, WKDownloadD
     func downloadDidFinish(_ download: WKDownload) { flash("Saved to Downloads") }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) { flash("Download failed") }
+}
+
+// MARK: - Sound
+
+extension WKWebView {
+    // Whether the page is making sound right now (playing and not muted). WebKit only keeps this in an
+    // internal property; should a later version drop it, every page simply counts as silent
+    @objc dynamic var isPlayingSound: Bool {
+        responds(to: NSSelectorFromString("_isPlayingAudio")) && value(forKey: "_isPlayingAudio") as? Bool == true
+    }
+
+    // Makes `isPlayingSound` observable: it changes whenever WebKit's own property does
+    @objc class func keyPathsForValuesAffectingIsPlayingSound() -> Set<String> { ["_isPlayingAudio"] }
 }

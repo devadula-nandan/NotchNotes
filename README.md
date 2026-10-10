@@ -24,6 +24,7 @@ https://github.com/user-attachments/assets/21a1e01f-e46a-49fc-b3f6-b9cb442a801e
 - **Bullets and indenting**: Enter continues a `- item` list as well. Tab and Shift-Tab move list items in and out a level.
 - **Links**: addresses in the notes are underlined; ⌘-click one to open it in the panel.
 - **Inline web view**: paste a URL into the URL bar and press Return to embed any webpage in the panel. Plain text that isn't an address runs a web search. Addresses on `localhost`, `.local` or a bare IP load over `http`. Press Return on an empty URL field to return to notes. The URL is remembered across relaunches.
+- **Audio indicator**: a page keeps playing after the panel closes. While it is playing audio, a thin line shows around the notch with pulses running up it, so you can tell where the audio is coming from.
 - **Lock open**: click the lock icon next to the quit button to keep the panel open when the mouse leaves; click again to unlock. The lock is remembered across relaunches.
 - **Resizable panel**: drag the bottom-left or bottom-right corner grips to resize the panel. Width and height are saved and restored.
 - **Adjustable font size**: a small number field in the toolbar sets the monospaced editor font size (10–24 pt). Type a size and press Return, or step it with the field's up / down arrows or the ↑ / ↓ keys. Persisted across launches.

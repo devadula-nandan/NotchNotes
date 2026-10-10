@@ -129,6 +129,7 @@ final class NotchWindowController: NSWindowController {
     let webHost = NSView()                                       // holds the page and its pop-ups, clipped to the panel's shape
     private let webMask = CAShapeLayer()
     let loadingPill = LoadingPill(frame: .zero)
+    private let soundLine = NSImageView()
 
     private let notes = NoteStore(folder: notesFolder)
     private var noteIndex = 0
@@ -174,9 +175,10 @@ final class NotchWindowController: NSWindowController {
         (isExpanded ? expandedFrame : collapsedFrame).insetBy(dx: -1, dy: -1).contains(NSEvent.mouseLocation)
     }
 
+    // A sliver taller than the notch, for the line under it while a page plays sound
     private var collapsedFrame: CGRect {
-        let s = notchScreen.frame, n = notchSize, w = n.width + 2 * collapsedRadius
-        return CGRect(x: s.midX - w / 2, y: s.maxY - n.height, width: w, height: n.height)
+        let s = notchScreen.frame, n = notchSize, w = n.width + 2 * collapsedRadius, h = n.height + soundH
+        return CGRect(x: s.midX - w / 2, y: s.maxY - h, width: w, height: h)
     }
 
     private var expandedFrame: CGRect {
@@ -240,6 +242,9 @@ final class NotchWindowController: NSWindowController {
         [tray, hintView].forEach(panel.addSubview)
         cv.addSubview(panel)
         cv.panel = panel
+        // Sound line: beside the panel's own view, which is invisible while the panel is closed
+        soundLine.wantsLayer = true
+        cv.superview?.addSubview(soundLine, positioned: .below, relativeTo: cv)
 
         applyCapture()
         applyLock()
@@ -791,6 +796,7 @@ final class NotchWindowController: NSWindowController {
         stayInFront()
         scheduleFrontCheck()
         win.contentView?.alphaValue = 1
+        updateSoundLine()
         if !isLocked { startHoverPoll() }
 
         NSAnimationContext.runAnimationGroup { ctx in
@@ -825,11 +831,43 @@ final class NotchWindowController: NSWindowController {
             win.animator().setFrame(collapsedFrame, display: true)
         } completionHandler: { [weak self] in
             guard self?.animationID == id else { return }
+            self?.updateSoundLine()
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.15
                 win.contentView?.animator().alphaValue = 0
             }
         }
+    }
+
+    // While the panel is closed, a page making sound shows as a thin line hugging the notch, with pulses running
+    // up it. Run when the panel opens or has closed, and when the sound starts or stops
+    func updateSoundLine() {
+        let screen = notchScreen, on = !isExpanded && allWebViews.contains { $0.isPlayingSound }
+        soundLine.isHidden = !on
+        soundLine.layer?.mask = nil
+        // The screen's own outline, notch included, moved into the window (not public: without it there is no line).
+        // Stroked along that edge, the half of the line inside the notch simply isn't there
+        guard on, let frame = window?.frame, screen.responds(to: NSSelectorFromString("bezelPath")),
+              let outline = (screen.value(forKey: "bezelPath") as? NSBezierPath)?.copy() as? NSBezierPath else { return }
+        outline.transform(using: AffineTransform(translationByX: screen.frame.minX - frame.minX, byY: screen.frame.minY - frame.minY))
+        outline.lineWidth = 2 * soundH
+        soundLine.frame.size = frame.size
+        soundLine.image = NSImage(size: frame.size, flipped: false) { _ in NSColor.controlAccentColor.set(); outline.stroke(); return true }
+
+        // The pulse is a mask: the line shows faintly, and fully where a ring passes that keeps growing out of the
+        // middle of the notch's lower edge. A square stood on its corner, so it moves along the line at an even pace
+        let mask = CALayer(), ring = CALayer(), pulse = CABasicAnimation(keyPath: "bounds")
+        mask.frame.size = frame.size
+        mask.backgroundColor = NSColor(white: 0, alpha: 0.3).cgColor
+        mask.addSublayer(ring)
+        ring.position.x = frame.width / 2
+        ring.borderWidth = 20
+        ring.setAffineTransform(CGAffineTransform(rotationAngle: .pi / 4))
+        pulse.toValue = CGRect(x: 0, y: 0, width: 300, height: 300)
+        pulse.duration = 2
+        pulse.repeatCount = .infinity
+        ring.add(pulse, forKey: nil)
+        soundLine.layer?.mask = mask
     }
 
     // MARK: - Saving

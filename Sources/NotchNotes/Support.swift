@@ -52,6 +52,7 @@ let trayPad:   CGFloat = 6
 let notchGap:  CGFloat = 8
 let clearW:    CGFloat = 16                 // clear button inside the URL field
 let webInset:  CGFloat = 6                  // black border around web pages
+let soundH:    CGFloat = 1.5                // line around the notch while a page plays sound
 let inkColor = NSColor(white: 0.92, alpha: 1)    // notes and field text
 let topLevel = Int(CGWindowLevelForKey(.maximumWindow))   // the highest level, shared with other apps' overlays
 let hotKeyCode = UInt32(kVK_ANSI_N)                       // ⌃⌥N opens and closes the panel from anywhere
