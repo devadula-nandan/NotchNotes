@@ -1,6 +1,6 @@
 # NotchNotes
 
-A lightweight macOS notepad that lives inside your MacBook's notch. Hover over the notch to reveal a dark floating panel where you can take notes, manage checklists, or pin any webpage, all without leaving your current app.
+A lightweight macOS notepad that lives inside your MacBook's notch. Hover over the notch to reveal a dark floating panel where you can take notes, manage checklists, or load any webpage, all without leaving your current app.
 
 > Requires macOS 13 Ventura or later on a Mac with a notch (M-series MacBook Pro/Air). Works on non-notch Macs too, centering at the top of the screen.
 
