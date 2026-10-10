@@ -1,31 +1,45 @@
 name: Release
 
+# Run by hand: Actions > Release > Run workflow, or `gh workflow run release.yml`
 on:
-  push:
-    branches:
-      - main
-    # Only changes that end up in the app make a release
-    paths:
-      - 'Sources/**'
-      - 'Package.swift'
-      - 'make-app.sh'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (auto reads the commit messages since the last tag)
+        type: choice
+        default: auto
+        options: [auto, patch, minor, major]
+
+# Two runs at once would compute the same tag
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build & Publish
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
     permissions:
       contents: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0   # full history so we can read all tags
 
       - name: Compute next semantic version
         id: version
+        env:
+          BUMP: ${{ inputs.bump }}
         run: |
+          # A second run on the same commit would publish the same code under a new number
+          if [ -n "$(git tag --points-at HEAD)" ]; then
+            echo "::error::HEAD is already released as $(git tag --points-at HEAD)"
+            exit 1
+          fi
+
           # Get the latest semver tag (vMAJOR.MINOR.PATCH), default to v0.0.0
           LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
             | sort -V | tail -n 1)
@@ -35,22 +49,33 @@ jobs:
           MINOR=$(echo "$LATEST" | cut -d. -f2)
           PATCH=$(echo "$LATEST" | cut -d. -f3)
 
-          # Bump patch by default.
-          # Bump minor if any commit message since last tag starts with "feat".
-          # Bump major if any commit message since last tag starts with "BREAKING".
-          COMMITS=$(git log "${LATEST}..HEAD" --pretty=format:"%s")
+          # "auto" bumps patch by default,
+          # minor if any commit message since last tag starts with "feat",
+          # major if any commit message since last tag starts with "BREAKING".
+          if [ "$BUMP" = auto ]; then
+            COMMITS=$(git log "${LATEST}..HEAD" --pretty=format:"%s")
 
-          if echo "$COMMITS" | grep -qiE '^BREAKING'; then
-            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
-          elif echo "$COMMITS" | grep -qiE '^feat'; then
-            MINOR=$((MINOR + 1)); PATCH=0
-          else
-            PATCH=$((PATCH + 1))
+            if echo "$COMMITS" | grep -qiE '^BREAKING'; then
+              BUMP=major
+            elif echo "$COMMITS" | grep -qiE '^feat'; then
+              BUMP=minor
+            else
+              BUMP=patch
+            fi
           fi
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            *)     PATCH=$((PATCH + 1)) ;;
+          esac
 
           NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
           echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
           echo "Bumping $LATEST → $NEW_TAG"
+
+          # Release notes: the commit messages since the last tag
+          git log "${LATEST}..HEAD" --no-merges --pretty='- %s' > "$RUNNER_TEMP/notes.md"
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
@@ -66,19 +91,12 @@ jobs:
           bash make-app.sh
           zip -r "NotchNotes-${VERSION}.zip" NotchNotes.app
 
-      - name: Tag the commit
+      # One call creates the tag and the release together, so a failure can't leave a tag with no release
+      - name: Create GitHub Release
         env:
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.tag }}
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "$VERSION"
-          git push origin "$VERSION"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631  # v2.2.2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
-          files: NotchNotes-${{ steps.version.outputs.tag }}.zip
+          gh release create "$VERSION" "NotchNotes-${VERSION}.zip" \
+            --target "$GITHUB_SHA" --title "$VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes

@@ -14,8 +14,9 @@ swift build -c release
 
 # 2. Create the app bundle structure
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/NotchNotes "$APP/Contents/MacOS/NotchNotes"
+cp LICENSE "$APP/Contents/Resources/LICENSE"   # the MIT notice travels with every copy of the app
 
 # 3. Info.plist: LSUIElement keeps it out of the Dock and Cmd+Tab
 cat > "$APP/Contents/Info.plist" <<EOF
@@ -29,6 +30,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
     <key>CFBundlePackageType</key>         <string>APPL</string>
     <key>CFBundleShortVersionString</key>  <string>${SHORT}</string>
     <key>CFBundleVersion</key>             <string>${BUILD}</string>
+    <key>NSHumanReadableCopyright</key>    <string>Copyright &#169; 2026 Nandan Devadula. MIT License.</string>
     <key>LSMinimumSystemVersion</key>      <string>13.0</string>
     <key>LSUIElement</key>                 <true/>
     <key>NSHighResolutionCapable</key>     <true/>

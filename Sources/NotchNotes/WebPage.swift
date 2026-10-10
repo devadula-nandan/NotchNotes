@@ -41,8 +41,8 @@ extension NotchWindowController {
         config.userContentController.addUserScript(WKUserScript(
             source: "const s = document.createElement('style'); s.textContent = '* { cursor: default !important; }'; document.documentElement.appendChild(s);",
             injectionTime: .atDocumentStart, forMainFrameOnly: false))
-        // Identify as Safari (the embedded engine omits this), so sites serve the same pages Safari gets
-        config.applicationNameForUserAgent = "Version/\(safariVersion) Safari/605.1.15"
+        // Add the browser token the embedded engine leaves out, so sites serve the pages a full browser gets
+        config.applicationNameForUserAgent = "Version/\(browserVersion) Safari/605.1.15"
 
         let wv = WKWebView(frame: .zero, configuration: config)
         webView = wv
@@ -130,16 +130,16 @@ extension NotchWindowController {
         allWebViews.forEach { $0.appearance = NSAppearance(named: dark ? .darkAqua : .aqua) }
     }
 
-    var safariVersion: String {
+    var browserVersion: String {
         let os = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
         return os >= 26 ? "\(os).0" : "18.5"
     }
 
-    // iPhone Safari, so sites serve their mobile pages; nil falls back to the desktop Safari agent.
-    // Like Safari itself from iOS 26 on, the OS version stays at 18_6 and only Version/ moves on
+    // A phone browser's agent, so sites serve their mobile pages; nil falls back to the desktop agent.
+    // From iOS 26 on the OS version in it stays at 18_6 and only Version/ moves on
     var mobileUserAgent: String {
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
-            + "Version/\(safariVersion) Mobile/15E148 Safari/604.1"
+            + "Version/\(browserVersion) Mobile/15E148 Safari/604.1"
     }
 }
 

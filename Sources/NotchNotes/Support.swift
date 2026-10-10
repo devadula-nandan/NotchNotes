@@ -53,7 +53,7 @@ let notchGap:  CGFloat = 8
 let clearW:    CGFloat = 16                 // clear button inside the URL field
 let webInset:  CGFloat = 6                  // black border around web pages
 let inkColor = NSColor(white: 0.92, alpha: 1)    // notes and field text
-let topLevel = Int(CGWindowLevelForKey(.maximumWindow))   // same level as Teams' share border
+let topLevel = Int(CGWindowLevelForKey(.maximumWindow))   // the highest level, shared with other apps' overlays
 let hotKeyCode = UInt32(kVK_ANSI_N)                       // ⌃⌥N opens and closes the panel from anywhere
 let hotKeyModifiers = UInt32(controlKey | optionKey)
 

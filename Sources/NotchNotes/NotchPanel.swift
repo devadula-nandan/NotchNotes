@@ -721,7 +721,7 @@ final class NotchWindowController: NSWindowController {
         layoutControls()
     }
 
-    // Teams' share border also sits at the max level; re-order on top if anything there is in front of us
+    // Other apps' overlays (a screen-share border, say) also sit at the max level; re-order on top if anything there is in front of us
     private func stayInFront() {
         guard let win = window,
               let list = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) as? [[String: Any]]

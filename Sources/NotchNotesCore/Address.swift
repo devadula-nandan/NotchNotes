@@ -1,6 +1,6 @@
 import Foundation
 
-// What was typed is an address if it looks like one (scheme, dotted host, localhost); otherwise a Google search
+// What was typed is an address if it looks like one (scheme, dotted host, localhost); otherwise a web search
 public func destination(for text: String) -> URL? {
     if text.contains("://") { return URL(string: text) }
     let host = String(text.prefix { $0 != "/" && $0 != ":" && $0 != "?" })
