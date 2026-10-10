@@ -145,7 +145,7 @@ final class NotchWindowController: NSWindowController {
     private let checklistButton = IconButton("checklist", hint: "Checklist")
     private let numberedButton = IconButton("list.number", hint: "Numbered List")
     private let agentButton = IconButton("desktopcomputer", hint: "")
-    private let otaButton = IconButton("icloud.and.arrow.down", hint: "", width: 40)
+    private let otaButton = IconButton("icloud.and.arrow.down", hint: "")
     private var otaTimer: Timer?
     let clearButton = IconButton("xmark.circle.fill", hint: "Close Page", width: clearW)
     private lazy var sizeField = FontSizeField(value: fontSize, range: 10...24)
@@ -231,7 +231,7 @@ final class NotchWindowController: NSWindowController {
         panel.layer?.backgroundColor = NSColor.black.cgColor
         webHost.wantsLayer = true
         webHost.layer?.mask = webMask
-        [scrollView, webHost, loadingPill, pager, quitButton, lockButton, captureButton, moreButton].forEach(panel.addSubview)
+        [scrollView, webHost, loadingPill, pager, quitButton, otaButton, lockButton, captureButton, moreButton].forEach(panel.addSubview)
         for right in [false, true] {
             let grip = ResizeHandle(right: right)
             grip.wc = self
@@ -411,11 +411,14 @@ final class NotchWindowController: NSWindowController {
         pager.frame = CGRect(x: ((panelW - pagerW) / 2).rounded(), y: 0, width: pagerW, height: notesPad)
         pager.isHidden = webView != nil
 
-        // Top strip. Fixed: quit and lock at the left edge, eye at the right, "…" beside it when needed
+        // Top strip. Fixed: quit and lock at the left edge, with the update button between them while it shows;
+        // eye at the right, "…" beside it when needed
         let y = panelH - notchSize.height / 2 - toolH / 2, step = toolW + toolGap
         let eyeX = panelW - edgeInset - toolW, moreX = eyeX - step
+        let lockX = edgeInset + (otaButton.isHidden ? 1 : 2) * step
         quitButton.frame.origin = CGPoint(x: edgeInset, y: y)
-        lockButton.frame.origin = CGPoint(x: edgeInset + step, y: y)
+        otaButton.frame.origin = CGPoint(x: edgeInset + step, y: y)
+        lockButton.frame.origin = CGPoint(x: lockX, y: y)
         captureButton.frame.origin = CGPoint(x: eyeX, y: y)
         moreButton.frame.origin = CGPoint(x: moreX, y: y)
 
@@ -430,15 +433,14 @@ final class NotchWindowController: NSWindowController {
 
         // Each side of the notch has the same space. The formatting tools only apply to notes and the
         // agent button only to a page (where it sits just left of the URL field), so only one is shown at a time
-        let side = (panelW - notchSize.width) / 2, toolsX = edgeInset + 2 * step
+        let side = (panelW - notchSize.width) / 2, toolsX = lockX + step
         let web = webView != nil
         formatTools.forEach { $0.isHidden = web }
         agentButton.isHidden = !web
 
-        // Tools stay beside the notch while they fit; the rest move into the tray, last one first.
-        // The update button leads them while it is showing
+        // Tools stay beside the notch while they fit; the rest move into the tray, last one first
         var x = toolsX, overflow: [NSView] = []
-        for v in (otaButton.isHidden ? [] : [otaButton as NSView]) + (web ? [] : formatTools) {
+        for v in web ? [] : formatTools {
             if overflow.isEmpty, x + v.frame.width + notchGap <= side {
                 place(v, in: panel, x: x, y: y)
                 x += v.frame.width + toolGap
@@ -880,7 +882,7 @@ final class NotchWindowController: NSWindowController {
 
     // MARK: - Update
 
-    // A newer release is out: its button shows for 60 seconds of the panel being open, counting them down.
+    // A newer release is out: its button shows until the panel has been open for a minute.
     // A click puts that release in place of this app and restarts into it
     private func offerUpdate(to tag: String, from zip: URL) {
         var left = 60
@@ -890,18 +892,16 @@ final class NotchWindowController: NSWindowController {
             self?.layoutControls()
         }
         otaButton.hint = "Update to \(tag)"
-        otaButton.title = "\(left)"
         otaButton.isHidden = false
         otaButton.onClick = { [weak self] in
             self?.otaTimer?.invalidate()
             self?.otaButton.onClick = nil
-            self?.otaButton.title = "…"
+            self?.otaButton.isActive = false
             OTA.install(zip) { NSSound.beep(); dismiss() }
         }
         otaTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             guard let self, self.isExpanded else { return }
             left -= 1
-            self.otaButton.title = "\(left)"
             if left == 0 { dismiss() }
         }
         layoutControls()

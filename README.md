@@ -31,7 +31,7 @@ https://github.com/user-attachments/assets/21a1e01f-e46a-49fc-b3f6-b9cb442a801e
 - **Screen-recording privacy**: by default the window is excluded from screen captures and recordings. Click the eye icon in the top-right to toggle visibility in screen shares.
 - **Overflow toolbar tray**: on narrower panels, toolbar buttons collapse into a `…` menu so nothing is ever clipped.
 - **Smooth expand/collapse animation**: 220 ms ease-out expand, ease-in collapse with a 150 ms fade.
-- **Updates itself**: at launch the app checks its GitHub releases. When a newer version is out, a cloud button appears in the toolbar for 60 seconds of the panel being open, counting down; hover it to see the version. Click it and the app downloads that release, replaces itself and relaunches, with no manual download or `xattr`.
+- **Updates itself**: at launch the app checks its GitHub releases. When a newer version is out, a cloud button appears between the quit and lock buttons until the panel has been open for a minute; hover it to see the version. Click it and the app downloads that release, replaces itself and relaunches, with no manual download or `xattr`.
 - **Stays on top**: the panel puts itself back in front when another app's overlay, such as a screen-share border, gets in front of it.
 - **Keyboard shortcuts**: standard ⌘A, ⌘C, ⌘V, ⌘X, ⌘Z, ⌘⇧Z, ⌘Q all work even though the app has no Dock icon or menu bar. ⌘L jumps to the URL field; ⌘[, ⌘] and ⌘R go back, forward and reload a page.
 - **VoiceOver**: the toolbar buttons and fields are labelled.
