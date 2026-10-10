@@ -4,9 +4,9 @@
 
 Hover over the notch and a panel drops down with your notes, a checklist or any web page. Move away and it disappears. There is no Dock icon, no menu bar icon and no window to manage.
 
-[Features](#features) · [Install](#install) · [Usage](#usage) · [Your notes](#your-notes) · [Build from source](#build-from-source)
+[Website](https://devadula-nandan.github.io/NotchNotes/) · [Features](#features) · [Install](#install) · [Usage](#usage) · [Your notes](#your-notes) · [Build from source](#build-from-source)
 
-https://github.com/user-attachments/assets/21a1e01f-e46a-49fc-b3f6-b9cb442a801e
+[![A tour of NotchNotes: notes, checklists, lists, web pages, screen sharing and updates, each shown in the panel under the notch](docs/screenshots/tour.webp)](https://devadula-nandan.github.io/NotchNotes/)
 
 **Requirements:** macOS 13 Ventura or later. Designed for Macs with a notch; on other Macs the panel sits at the top center of the screen.
 

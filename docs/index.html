@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NotchNotes: a notepad in your MacBook's notch</title>
+<meta name="description" content="Hover over the notch and a panel drops down with your notes, a checklist or any web page. Free and open source for macOS 13 or later.">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NotchNotes: a notepad in your MacBook's notch">
+<meta property="og:description" content="Hover over the notch and a panel drops down with your notes, a checklist or any web page.">
+<meta property="og:url" content="https://devadula-nandan.github.io/NotchNotes/">
+<meta property="og:image" content="https://devadula-nandan.github.io/NotchNotes/screenshots/social.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f09a35'/%3E%3Cpath d='M7 0H25A7 7 0 0 1 32 7H26V16A4 4 0 0 1 22 20H10A4 4 0 0 1 6 16V7H0A7 7 0 0 1 7 0Z'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #151518;
+    --line: #26262b;
+    --text: #ededf0;
+    --muted: #a3a3ad;
+    --amber: #f5b83d;
+    --orange: #ef7f30;
+    --link: #80b8ff;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --page: 1040px;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: radial-gradient(900px 520px at 50% -140px, rgba(239, 127, 48, .2), transparent 70%) no-repeat, var(--bg);
+    color: var(--text);
+    font: 17px/1.55 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  img { display: block; max-width: 100%; }
+  h1, h2, h3, p { margin: 0; }
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 6px; }
+  .wrap { width: min(100% - 32px, var(--page)); margin-inline: auto; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  kbd, code { font-family: var(--mono); font-size: .88em; }
+  kbd, p code { padding: .1em .4em; border-radius: 5px; background: rgba(255, 255, 255, .09); white-space: nowrap; }
+
+  /* Header */
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -.01em; text-decoration: none; }
+  .brand svg { width: 26px; height: 26px; }
+  .top nav { display: flex; align-items: center; gap: clamp(14px, 3vw, 28px); font-size: .94rem; }
+  .top nav a { color: var(--muted); text-decoration: none; }
+  .top nav a:hover { color: var(--text); }
+
+  /* Hero */
+  .hero { padding: clamp(36px, 7vw, 76px) 0 clamp(28px, 5vw, 48px); text-align: center; }
+  .eyebrow { font: 500 .8rem/1 var(--mono); letter-spacing: .04em; color: var(--amber); }
+  .hero h1 {
+    margin: 18px auto 0;
+    max-width: 15ch;
+    font-size: clamp(2.3rem, 6.4vw, 4.1rem);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -.035em;
+    text-wrap: balance;
+  }
+  .lede { margin: 22px auto 0; max-width: 56ch; color: var(--muted); font-size: clamp(1rem, 1.6vw, 1.14rem); text-wrap: pretty; }
+  .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 30px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: 11px; border: 1px solid transparent;
+    font-weight: 600; font-size: .98rem; text-decoration: none;
+    transition: transform .15s ease, background-color .15s ease, border-color .15s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--amber); color: #17130a; }
+  .btn.primary:hover { background: #ffc956; }
+  .btn.ghost { border-color: #3a3a41; color: var(--text); }
+  .btn.ghost:hover { border-color: #5a5a63; background: rgba(255, 255, 255, .04); }
+  .fineprint { margin-top: 16px; color: var(--muted); font-size: .86rem; }
+
+  /* Carousel */
+  .carousel { position: relative; width: min(100%, 960px); margin-inline: auto; }
+  .track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    border-radius: 22px;
+  }
+  .track::-webkit-scrollbar { display: none; }
+  .slide { flex: 0 0 100%; margin: 0; padding: 0 clamp(8px, 2vw, 16px); scroll-snap-align: center; scroll-snap-stop: always; }
+  /* The display: a black bezel around a wallpaper, with the panel hanging from the top edge as it does from the notch */
+  .device { padding: 10px; border-radius: 20px; background: #000; box-shadow: 0 0 0 1px #2c2c31; }
+  .screen {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 11px;
+    background:
+      radial-gradient(70% 80% at 12% 0%, rgba(255, 221, 140, .9), rgba(255, 221, 140, 0) 62%),
+      radial-gradient(90% 90% at 100% 100%, rgba(190, 52, 36, .95), rgba(190, 52, 36, 0) 66%),
+      linear-gradient(160deg, #f7ad3c, #ee7a2f 55%, #d2532c);
+  }
+  .shot {
+    position: absolute; top: 0; left: 50%;
+    width: var(--w, 66%); height: auto; max-height: 94%;
+    transform: translateX(-50%);
+    object-fit: contain; object-position: 50% 0;
+    filter: drop-shadow(0 18px 28px rgba(60, 14, 0, .35));
+  }
+  .slide figcaption { padding: 22px 8px 4px; text-align: center; }
+  .slide h3 { font-size: clamp(1.2rem, 2.4vw, 1.5rem); font-weight: 650; letter-spacing: -.02em; }
+  .slide p { margin: 8px auto 0; max-width: 58ch; color: var(--muted); text-wrap: pretty; }
+
+  .controls { display: none; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+  .js .controls { display: flex; }
+  .round {
+    display: grid; place-items: center;
+    width: 40px; height: 40px; padding: 0; border-radius: 50%;
+    border: 1px solid #3a3a41; background: transparent; color: var(--text); cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease;
+  }
+  .round:hover { border-color: #5a5a63; background: rgba(255, 255, 255, .06); }
+  .round svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .dots { display: flex; align-items: center; gap: 2px; }
+  .dot { width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+  .dot::before { content: ""; width: 7px; height: 7px; border-radius: 4px; background: #4a4a52; transition: width .25s ease, background-color .25s ease; }
+  .dot:hover::before { background: #7d7d88; }
+  .dot[aria-current="true"]::before { width: 20px; background: var(--amber); }
+
+  /* Sections */
+  section.block { padding: clamp(56px, 9vw, 104px) 0 0; }
+  .block h2 { font-size: clamp(1.6rem, 3.6vw, 2.3rem); font-weight: 700; letter-spacing: -.03em; line-height: 1.12; }
+  .block .intro { margin-top: 12px; max-width: 56ch; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 30px 36px; margin-top: 40px; }
+  .grid h3 { padding-top: 16px; border-top: 1px solid var(--line); font-size: 1rem; font-weight: 650; }
+  .grid p { margin-top: 6px; color: var(--muted); font-size: .95rem; }
+
+  /* Install */
+  .install { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
+  .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  .steps li { position: relative; padding: 0 0 22px 46px; counter-increment: step; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute; left: 0; top: 0;
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid #4a3d1e; color: var(--amber); font: 600 .82rem/1 var(--mono);
+  }
+  .steps a { color: var(--link); text-underline-offset: 3px; }
+  .cmd { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 10px 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: #000; }
+  .cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; color: var(--text); font-size: .86rem; }
+  .copy { flex: none; padding: 6px 10px; border-radius: 7px; border: 1px solid #3a3a41; background: transparent; color: var(--muted); font: 500 .8rem/1 var(--sans); cursor: pointer; }
+  .copy:hover { color: var(--text); border-color: #5a5a63; }
+  .note { margin-top: 4px; color: var(--muted); font-size: .92rem; }
+
+  footer { margin-top: clamp(64px, 10vw, 120px); padding: 28px 0 44px; border-top: 1px solid var(--line); color: var(--muted); font-size: .86rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; }
+  footer a { text-underline-offset: 3px; }
+
+  @media (max-width: 720px) {
+    .install { grid-template-columns: 1fr; }
+    .top nav a.hide-s { display: none; }
+    /* Small panels would be unreadable at their desktop share of the screen */
+    .shot { width: min(96%, calc(var(--w, 66%) * 1.36)); }
+    .device { padding: 7px; border-radius: 15px; }
+    .screen { border-radius: 8px; aspect-ratio: 4 / 3; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html, .track { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap top">
+  <a class="brand" href="./" aria-label="NotchNotes home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#f09a35"/><path d="M7 0H25A7 7 0 0 1 32 7H26V16A4 4 0 0 1 22 20H10A4 4 0 0 1 6 16V7H0A7 7 0 0 1 7 0Z"/></svg>
+    NotchNotes
+  </a>
+  <nav aria-label="Page">
+    <a class="hide-s" href="#features">Features</a>
+    <a class="hide-s" href="#install">Install</a>
+    <a href="https://github.com/devadula-nandan/NotchNotes">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <p class="eyebrow">macOS 13 or later · free · open source</p>
+    <h1>A notepad that lives in your MacBook's notch.</h1>
+    <p class="lede">Hover over the notch and a panel drops down with your notes, a checklist or any web page. Move away and it disappears. There is no Dock icon, no menu bar icon and no window to manage.</p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/devadula-nandan/NotchNotes/releases/latest">Download for macOS</a>
+      <a class="btn ghost" href="https://github.com/devadula-nandan/NotchNotes">View the source</a>
+    </div>
+    <p class="fineprint">Designed for Macs with a notch. On other Macs the panel sits at the top center of the screen.</p>
+  </div>
+
+  <section class="carousel" id="features" aria-roledescription="carousel" aria-label="Feature tour">
+    <div class="track" tabindex="0">
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="1 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" src="screenshots/notes.webp" width="1064" height="560" alt="The panel open under the notch with a short meeting note and an underlined link">
+        </div></div>
+        <figcaption>
+          <h3>Notes, saved as you type</h3>
+          <p>Notes are plain text files, restored the next time the app opens. The dots under the text switch between notes, and <kbd>+</kbd> starts a new one.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="2 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" src="screenshots/checklist.webp" width="1064" height="560" loading="lazy" alt="A checklist in the panel: three open items, then three checked items struck through">
+        </div></div>
+        <figcaption>
+          <h3>Checklists</h3>
+          <p>Type <code>- [ ] item</code> or use the checklist button. Click a box to check it. Checked items are struck through and move below the unchecked ones.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="3 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" src="screenshots/lists.webp" width="1064" height="560" loading="lazy" alt="A numbered list with two indented bullets, and a link underlined in blue">
+        </div></div>
+        <figcaption>
+          <h3>Lists and links</h3>
+          <p>Enter continues a numbered or bulleted list and keeps the numbers in order. Tab moves an item in a level. Addresses are underlined, and ⌘-click opens one in the panel.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="4 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" style="--w: 84%" src="screenshots/font-size.webp" width="1584" height="680" loading="lazy" alt="A wider panel with larger text, with the font size and address fields in the toolbar">
+        </div></div>
+        <figcaption>
+          <h3>Any size you like</h3>
+          <p>Drag either bottom corner to resize the panel, and set the editor font from 10 to 24 pt. Both are remembered.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="5 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" style="--w: 84%" src="screenshots/web.webp" width="2024" height="1200" loading="lazy" alt="A Wikipedia article open in a large panel, with its address in the toolbar">
+        </div></div>
+        <figcaption>
+          <h3>Any web page</h3>
+          <p>Type an address in the URL field and press Return. Text that isn't an address runs a web search. The page is remembered across launches.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="6 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" style="--w: 38%" src="screenshots/mobile.webp" width="924" height="1200" loading="lazy" alt="The same article in a narrow panel, showing the mobile version of the site">
+        </div></div>
+        <figcaption>
+          <h3>Mobile or desktop site</h3>
+          <p>One button switches between the two, so a page fits a narrow panel as well as a wide one.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="7 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" src="screenshots/screen-sharing.webp" width="1064" height="560" loading="lazy" alt="The eye button in the toolbar with its hint, Hide from Screen Capture">
+        </div></div>
+        <figcaption>
+          <h3>Hidden from screen sharing</h3>
+          <p>By default the panel is left out of screen recordings and screen shares. The eye button shows it, and hides it again.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="slide" role="group" aria-roledescription="slide" aria-label="8 of 8">
+        <div class="device"><div class="screen">
+          <img class="shot" src="screenshots/update.webp" width="1064" height="560" loading="lazy" alt="A blue cloud button in the toolbar with its hint, Update to v1.2.7">
+        </div></div>
+        <figcaption>
+          <h3>Updates itself</h3>
+          <p>When a newer version is available, a cloud button appears. Click it and the app downloads the release, replaces itself and relaunches.</p>
+        </figcaption>
+      </figure>
+
+    </div>
+
+    <div class="controls">
+      <button class="round" type="button" data-step="-1" aria-label="Previous feature"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+      <div class="dots"></div>
+      <button class="round" type="button" data-step="1" aria-label="Next feature"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
+      <button class="round" type="button" data-play aria-label="Pause the tour"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.5v9M10.5 3.5v9"/></svg></button>
+    </div>
+  </section>
+
+  <section class="wrap block" aria-labelledby="more-title">
+    <h2 id="more-title">Also in the panel</h2>
+    <div class="grid">
+      <div><h3>Opens on hover or by hotkey</h3><p>Rest the mouse on the notch, or press <kbd>⌃⌥N</kbd> from any app.</p></div>
+      <div><h3>Lock open</h3><p>The lock button keeps the panel open when the mouse leaves, and stays set across launches.</p></div>
+      <div><h3>Audio indicator</h3><p>A page keeps playing after the panel closes, and a thin line pulses around the notch while it does.</p></div>
+      <div><h3>Fits any width</h3><p>Toolbar buttons that don't fit move into a <kbd>…</kbd> tray.</p></div>
+      <div><h3>Follows your displays</h3><p>The panel moves with the notch when displays are added, removed or rearranged.</p></div>
+      <div><h3>Stays in front</h3><p>The panel returns to the front when another app's overlay, such as a screen-share border, covers it.</p></div>
+      <div><h3>Local addresses</h3><p><code>localhost</code>, <code>.local</code> and bare IP addresses load over <code>http</code>.</p></div>
+      <div><h3>Downloads</h3><p>Files are saved to your Downloads folder.</p></div>
+      <div><h3>Light and dark</h3><p>Pages follow the system appearance. The panel itself is always dark.</p></div>
+      <div><h3>Your files</h3><p>Notes live in <code>~/Library/Application Support/NotchNotes</code>, or in a folder you choose.</p></div>
+      <div><h3>Accessible</h3><p>Toolbar buttons and fields are labelled for VoiceOver.</p></div>
+      <div><h3>Keyboard shortcuts</h3><p><kbd>⌘N</kbd> new note, <kbd>⌘L</kbd> URL field, <kbd>⌘R</kbd> reload. The <a href="https://github.com/devadula-nandan/NotchNotes#usage">README</a> lists them all.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap block" id="install" aria-labelledby="install-title">
+    <div class="install">
+      <div>
+        <h2 id="install-title">Install</h2>
+        <p class="intro">Later versions arrive through the update button, so these steps are not repeated.</p>
+      </div>
+      <ol class="steps">
+        <li>Download <code>NotchNotes-vX.Y.Z.zip</code> from the <a href="https://github.com/devadula-nandan/NotchNotes/releases/latest">latest release</a>.</li>
+        <li>Unzip it and move <code>NotchNotes.app</code> to <code>/Applications</code>.</li>
+        <li>Clear the macOS quarantine flag. This is needed once, because the app is ad-hoc signed rather than notarized.
+          <div class="cmd"><code id="cmd">xattr -cr /Applications/NotchNotes.app</code><button class="copy" type="button" data-copy="cmd">Copy</button></div>
+        </li>
+        <li>Open the app and hover over the notch.
+          <p class="note">To start it at login: System Settings → General → Login Items → <kbd>+</kbd> → select <code>NotchNotes.app</code>.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>NotchNotes is released under the <a href="https://github.com/devadula-nandan/NotchNotes/blob/main/LICENSE">MIT License</a>.</span>
+    <span>The web page shown is from Wikipedia, whose text is available under CC BY-SA 4.0.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  document.documentElement.classList.add('js');
+  const carousel = document.querySelector('.carousel');
+  const track = carousel.querySelector('.track');
+  const slides = [...track.children];
+  const dotsBox = carousel.querySelector('.dots');
+  const playBtn = carousel.querySelector('[data-play]');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ICON = { pause: 'M5.5 3.5v9M10.5 3.5v9', play: 'M5 3.5v9l7-4.5z' };
+  let index = 0, playing = !reduced, hovering = false, timer = null;
+
+  const dots = slides.map((slide, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'dot';
+    b.setAttribute('aria-label', `${i + 1} of ${slides.length}: ${slide.querySelector('h3').textContent}`);
+    b.addEventListener('click', () => { go(i); restart(); });
+    dotsBox.append(b);
+    return b;
+  });
+
+  function mark(i) {
+    index = i;
+    dots.forEach((d, n) => n === i ? d.setAttribute('aria-current', 'true') : d.removeAttribute('aria-current'));
+  }
+
+  // Going past either end wraps round, without the long scroll back through every slide
+  function go(i) {
+    const n = slides.length, to = (i + n) % n, wrapped = to !== i;
+    track.scrollTo({ left: to * track.clientWidth, behavior: wrapped || reduced ? 'auto' : 'smooth' });
+    mark(to);
+  }
+
+  function restart() {
+    clearInterval(timer);
+    timer = playing && !hovering && !document.hidden ? setInterval(() => go(index + 1), 5000) : null;
+  }
+
+  function setPlaying(on) {
+    playing = on;
+    playBtn.setAttribute('aria-label', on ? 'Pause the tour' : 'Play the tour');
+    playBtn.querySelector('path').setAttribute('d', on ? ICON.pause : ICON.play);
+    restart();
+  }
+
+  let frame = 0;
+  track.addEventListener('scroll', () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      const i = Math.round(track.scrollLeft / track.clientWidth);
+      if (i !== index && slides[i]) mark(i);
+    });
+  }, { passive: true });
+
+  carousel.querySelectorAll('[data-step]').forEach(b =>
+    b.addEventListener('click', () => { go(index + Number(b.dataset.step)); restart(); }));
+  playBtn.addEventListener('click', () => setPlaying(!playing));
+  carousel.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    go(index + (e.key === 'ArrowRight' ? 1 : -1));
+    restart();
+  });
+  // A swipe means the reader is driving: stop turning the pages for them
+  track.addEventListener('touchstart', () => setPlaying(false), { passive: true });
+  carousel.addEventListener('pointerenter', () => { hovering = true; restart(); });
+  carousel.addEventListener('pointerleave', () => { hovering = false; restart(); });
+  carousel.addEventListener('focusin', () => { hovering = true; restart(); });
+  carousel.addEventListener('focusout', () => { hovering = false; restart(); });
+  document.addEventListener('visibilitychange', restart);
+  addEventListener('resize', () => track.scrollTo({ left: index * track.clientWidth, behavior: 'auto' }));
+
+  mark(0);
+  setPlaying(playing);
+
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent);
+      b.textContent = 'Copied';
+    } catch {
+      b.textContent = 'Press ⌘C';
+      getSelection().selectAllChildren(document.getElementById(b.dataset.copy));
+    }
+    setTimeout(() => { b.textContent = 'Copy'; }, 1600);
+  }));
+})();
+</script>
+</body>
+</html>
