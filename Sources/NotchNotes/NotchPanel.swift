@@ -411,14 +411,12 @@ final class NotchWindowController: NSWindowController {
         pager.frame = CGRect(x: ((panelW - pagerW) / 2).rounded(), y: 0, width: pagerW, height: notesPad)
         pager.isHidden = webView != nil
 
-        // Top strip. Fixed: quit and lock at the left edge, with the update button between them while it shows;
-        // eye at the right, "…" beside it when needed
+        // Top strip. Fixed: quit and one more button at the left edge, eye at the right, "…" beside it when needed.
+        // That one button is the lock, or the update button while it shows
         let y = panelH - notchSize.height / 2 - toolH / 2, step = toolW + toolGap
         let eyeX = panelW - edgeInset - toolW, moreX = eyeX - step
-        let lockX = edgeInset + (otaButton.isHidden ? 1 : 2) * step
         quitButton.frame.origin = CGPoint(x: edgeInset, y: y)
         otaButton.frame.origin = CGPoint(x: edgeInset + step, y: y)
-        lockButton.frame.origin = CGPoint(x: lockX, y: y)
         captureButton.frame.origin = CGPoint(x: eyeX, y: y)
         moreButton.frame.origin = CGPoint(x: moreX, y: y)
 
@@ -433,14 +431,16 @@ final class NotchWindowController: NSWindowController {
 
         // Each side of the notch has the same space. The formatting tools only apply to notes and the
         // agent button only to a page (where it sits just left of the URL field), so only one is shown at a time
-        let side = (panelW - notchSize.width) / 2, toolsX = lockX + step
+        let side = (panelW - notchSize.width) / 2, toolsX = edgeInset + 2 * step
         let web = webView != nil
         formatTools.forEach { $0.isHidden = web }
         agentButton.isHidden = !web
 
-        // Tools stay beside the notch while they fit; the rest move into the tray, last one first
-        var x = toolsX, overflow: [NSView] = []
-        for v in web ? [] : formatTools {
+        // Tools stay beside the notch while they fit; the rest move into the tray, last one first.
+        // The lock leads them while the update button has its place
+        var x = toolsX, overflow: [NSView] = [], tools: [NSView] = web ? [] : formatTools
+        if otaButton.isHidden { place(lockButton, in: panel, x: edgeInset + step, y: y) } else { tools.insert(lockButton, at: 0) }
+        for v in tools {
             if overflow.isEmpty, x + v.frame.width + notchGap <= side {
                 place(v, in: panel, x: x, y: y)
                 x += v.frame.width + toolGap
