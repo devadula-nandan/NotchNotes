@@ -145,6 +145,8 @@ final class NotchWindowController: NSWindowController {
     private let checklistButton = IconButton("checklist", hint: "Checklist")
     private let numberedButton = IconButton("list.number", hint: "Numbered List")
     private let agentButton = IconButton("desktopcomputer", hint: "")
+    private let otaButton = IconButton("icloud.and.arrow.down", hint: "", width: 40)
+    private var otaTimer: Timer?
     let clearButton = IconButton("xmark.circle.fill", hint: "Close Page", width: clearW)
     private lazy var sizeField = FontSizeField(value: fontSize, range: 10...24)
     let urlBox = NSView(frame: CGRect(x: 0, y: 0, width: 100, height: toolH))
@@ -319,6 +321,11 @@ final class NotchWindowController: NSWindowController {
         agentButton.isActive = true
         agentButton.onClick = { [weak self] in self?.mobileAgent.toggle() }
 
+        otaButton.tint = .systemBlue
+        otaButton.isActive = true
+        otaButton.isHidden = true
+        OTA.check { [weak self] in self?.offerUpdate(to: $0, from: $1) }
+
         sizeField.onChange = { [weak self] in self?.setFontSize($0) }
         sizeField.onReturn = { [weak self] in self?.window?.makeFirstResponder(self?.textView) }
 
@@ -353,7 +360,7 @@ final class NotchWindowController: NSWindowController {
         }
         urlBox.addSubview(clearButton)
 
-        for b in [quitButton, lockButton, captureButton, moreButton, checklistButton, numberedButton, agentButton, clearButton] {
+        for b in [quitButton, lockButton, captureButton, moreButton, checklistButton, numberedButton, agentButton, otaButton, clearButton] {
             b.onHover = { [weak self, weak b] on in
                 if let self, let b { self.hover(b, on) }
             }
@@ -428,9 +435,10 @@ final class NotchWindowController: NSWindowController {
         formatTools.forEach { $0.isHidden = web }
         agentButton.isHidden = !web
 
-        // Tools stay beside the notch while they fit; the rest move into the tray, last one first
+        // Tools stay beside the notch while they fit; the rest move into the tray, last one first.
+        // The update button leads them while it is showing
         var x = toolsX, overflow: [NSView] = []
-        for v in web ? [] : formatTools {
+        for v in (otaButton.isHidden ? [] : [otaButton as NSView]) + (web ? [] : formatTools) {
             if overflow.isEmpty, x + v.frame.width + notchGap <= side {
                 place(v, in: panel, x: x, y: y)
                 x += v.frame.width + toolGap
@@ -868,6 +876,35 @@ final class NotchWindowController: NSWindowController {
         pulse.repeatCount = .infinity
         ring.add(pulse, forKey: nil)
         soundLine.layer?.mask = mask
+    }
+
+    // MARK: - Update
+
+    // A newer release is out: its button shows for 60 seconds of the panel being open, counting them down.
+    // A click puts that release in place of this app and restarts into it
+    private func offerUpdate(to tag: String, from zip: URL) {
+        var left = 60
+        let dismiss = { [weak self] in
+            self?.otaTimer?.invalidate()
+            self?.otaButton.isHidden = true
+            self?.layoutControls()
+        }
+        otaButton.hint = "Update to \(tag)"
+        otaButton.title = "\(left)"
+        otaButton.isHidden = false
+        otaButton.onClick = { [weak self] in
+            self?.otaTimer?.invalidate()
+            self?.otaButton.onClick = nil
+            self?.otaButton.title = "…"
+            OTA.install(zip) { NSSound.beep(); dismiss() }
+        }
+        otaTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self, self.isExpanded else { return }
+            left -= 1
+            self.otaButton.title = "\(left)"
+            if left == 0 { dismiss() }
+        }
+        layoutControls()
     }
 
     // MARK: - Saving

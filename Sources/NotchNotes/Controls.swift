@@ -8,6 +8,7 @@ final class IconButton: NSView {
     var hint: String
     var symbol: String { didSet { refresh() } }
     var hoverSymbol: String? { didSet { refresh() } }   // shown instead of the symbol while hovered
+    var title = "" { didSet { needsDisplay = true } }   // drawn after the icon, in a button made wider for it
     var isActive = false { didSet { refresh() } }
     var tint: NSColor? { didSet { refresh() } }         // active colour; nil = neutral white
     var iconColor = NSColor(white: 0.7, alpha: 1) { didSet { refresh() } }
@@ -22,8 +23,7 @@ final class IconButton: NSView {
         super.init(frame: CGRect(x: 0, y: 0, width: width, height: toolH))
         wantsLayer = true
         layer?.cornerRadius = 6
-        icon.frame = bounds
-        icon.autoresizingMask = [.width, .height]
+        icon.frame = CGRect(x: 0, y: 0, width: min(width, toolW), height: toolH)
         icon.imageScaling = .scaleNone
         addSubview(icon)
         refresh()
@@ -40,6 +40,13 @@ final class IconButton: NSView {
         icon.contentTintColor = isActive ? (tint ?? .white) : iconColor
         let activeFill = tint?.withAlphaComponent(hovering ? 0.34 : 0.24) ?? hoverFill
         layer?.backgroundColor = (isActive ? activeFill : hovering ? hoverFill : .clear).cgColor
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let text = NSAttributedString(string: title, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold),
+            .foregroundColor: icon.contentTintColor ?? iconColor])
+        text.draw(at: NSPoint(x: toolW - 3, y: (bounds.height - text.size().height) / 2))
     }
 
     // Hit the button, not its image view: only the button accepts the first click on an unfocused panel
