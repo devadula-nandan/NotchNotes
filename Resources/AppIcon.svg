@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- NotchNotes app icon. 1024 canvas, 824 icon shape with the standard macOS margin and shadow -->
+  <defs>
+    <linearGradient id="wall" x1="0.18" y1="0" x2="0.82" y2="1">
+      <stop offset="0" stop-color="#f9b945"/>
+      <stop offset="0.55" stop-color="#ee7b2f"/>
+      <stop offset="1" stop-color="#cf4c2a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.14" cy="0.1" r="0.62">
+      <stop offset="0" stop-color="#ffe59a" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffe59a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ember" cx="1" cy="1" r="0.8">
+      <stop offset="0" stop-color="#b52f22" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#b52f22" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="shape"><path d="M383.41 100.00 L640.59 100.00 C722.19 100.00 763.00 100.00 806.92 113.89 C854.88 131.34 892.66 169.12 910.11 217.08 C924.00 261.00 924.00 301.81 924.00 383.41 L924.00 640.59 C924.00 722.19 924.00 763.00 910.11 806.92 C892.66 854.88 854.88 892.66 806.92 910.11 C763.00 924.00 722.19 924.00 640.59 924.00 L383.41 924.00 C301.81 924.00 261.00 924.00 217.08 910.11 C169.12 892.66 131.34 854.88 113.89 806.92 C100.00 763.00 100.00 722.19 100.00 640.59 L100.00 383.41 C100.00 301.81 100.00 261.00 113.89 217.08 C131.34 169.12 169.12 131.34 217.08 113.89 C261.00 100.00 301.81 100.00 383.41 100.00 Z"/></clipPath>
+    <filter id="lift" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <filter id="drop" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#5a1500" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <g filter="url(#lift)"><path d="M383.41 100.00 L640.59 100.00 C722.19 100.00 763.00 100.00 806.92 113.89 C854.88 131.34 892.66 169.12 910.11 217.08 C924.00 261.00 924.00 301.81 924.00 383.41 L924.00 640.59 C924.00 722.19 924.00 763.00 910.11 806.92 C892.66 854.88 854.88 892.66 806.92 910.11 C763.00 924.00 722.19 924.00 640.59 924.00 L383.41 924.00 C301.81 924.00 261.00 924.00 217.08 910.11 C169.12 892.66 131.34 854.88 113.89 806.92 C100.00 763.00 100.00 722.19 100.00 640.59 L100.00 383.41 C100.00 301.81 100.00 261.00 113.89 217.08 C131.34 169.12 169.12 131.34 217.08 113.89 C261.00 100.00 301.81 100.00 383.41 100.00 Z" fill="#ee7b2f"/></g>
+  <g clip-path="url(#shape)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#wall)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#ember)"/>
+    <g filter="url(#drop)">
+      <path d="M238 100 Q268 100 268 130 V562 Q268 624 330 624 H694 Q756 624 756 562 V130 Q756 100 786 100 Z"/>
+    </g>
+    <rect x="329.5" y="242.5" width="51" height="51" rx="13" fill="none" stroke="#e9e9ec" stroke-width="7"/>
+    <rect x="414" y="254" width="272" height="28" rx="14" fill="#e9e9ec"/>
+    <rect x="329.5" y="358.5" width="51" height="51" rx="13" fill="none" stroke="#e9e9ec" stroke-width="7"/>
+    <rect x="414" y="370" width="196" height="28" rx="14" fill="#e9e9ec"/>
+    <rect x="326" y="471.0" width="58" height="58" rx="16" fill="#32c659"/>
+    <path d="M341 501 l10 10.5 l19 -22.5" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="414" y="486" width="238" height="28" rx="14" fill="#5d5d63"/>
+  </g>
+</svg>

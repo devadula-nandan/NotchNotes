@@ -17,6 +17,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/NotchNotes "$APP/Contents/MacOS/NotchNotes"
 cp LICENSE "$APP/Contents/Resources/LICENSE"   # the MIT notice travels with every copy of the app
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # 3. Info.plist: LSUIElement keeps it out of the Dock and Cmd+Tab
 cat > "$APP/Contents/Info.plist" <<EOF
@@ -27,6 +28,7 @@ cat > "$APP/Contents/Info.plist" <<EOF
     <key>CFBundleName</key>                <string>NotchNotes</string>
     <key>CFBundleIdentifier</key>          <string>com.local.notchnotes</string>
     <key>CFBundleExecutable</key>          <string>NotchNotes</string>
+    <key>CFBundleIconFile</key>            <string>AppIcon</string>
     <key>CFBundlePackageType</key>         <string>APPL</string>
     <key>CFBundleShortVersionString</key>  <string>${SHORT}</string>
     <key>CFBundleVersion</key>             <string>${BUILD}</string>
